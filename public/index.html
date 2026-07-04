@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Drone Security · Police Control Center</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -87,7 +88,7 @@
     <section class="panel" id="panel-map">
       <div class="section-title">Live fleet &amp; incident map — click empty space to set a dispatch target</div>
       <div class="map-wrap">
-        <svg id="map" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet"></svg>
+        <div id="map"></div>
         <div class="legend">
           <span><span class="dot" style="background:#16a34a"></span>Monitoring</span>
           <span><span class="dot" style="background:#f59e0b"></span>Alerting</span>
@@ -151,6 +152,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module" src="/js/portal.js"></script>
 </body>
 </html>

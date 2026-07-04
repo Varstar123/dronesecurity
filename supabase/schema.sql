@@ -54,6 +54,7 @@ create table if not exists public.dispatches (
   assigned_drones jsonb default '[]'::jsonb,
   frames          jsonb default '[]'::jsonb,
   updates         jsonb default '[]'::jsonb,
+  arrived         jsonb default '[]'::jsonb,
   resolved_at     timestamptz
 );
 

@@ -41,6 +41,11 @@ function wireSocket() {
   socket.on('dispatch:new', (d) => { refreshDispatches(); toast({ incidentType: d.incidentType, title: 'Drones dispatched', interpretation: `${d.assignedDrones.length} drones surrounding ${d.address || 'target'}`, sector: d.address }); });
   socket.on('dispatch:frame', ({ dispatchId, frame }) => onFrame(dispatchId, frame));
   socket.on('dispatch:updated', () => refreshDispatches());
+  socket.on('dispatch:arrived', (a) => {
+    toast({ incidentType: 'normal', title: `🚁 ${a.droneName} reached the location`, sector: 'Dispatch', interpretation: 'Drone in position — live camera available for monitoring.' });
+    beep();
+    refreshDispatches();
+  });
   socket.on('dispatch:resolved', () => { refreshDispatches(); refreshDrones(); });
   socket.on('mainforce:new', () => refreshMF());
   socket.on('live:frame', onLiveFrame);
@@ -48,7 +53,7 @@ function wireSocket() {
 }
 
 // ---------- data refresh ----------
-async function refreshDrones() { state.drones = await api('/api/drones'); renderMap(); renderDroneList(); }
+async function refreshDrones() { state.drones = await api('/api/drones'); renderMap(); renderDroneList(); renderDispatches(); }
 async function refreshAlerts() { state.alerts = await api('/api/alerts'); renderAlerts(); renderMap(); }
 async function refreshDispatches() { state.dispatches = await api('/api/dispatches'); renderDispatches(); renderMap(); }
 async function refreshMF() { state.mf = await api('/api/mainforce'); renderMF(); }
@@ -82,7 +87,7 @@ function setupTabs() {
       document.querySelectorAll('.panel').forEach((x) => x.classList.remove('active'));
       t.classList.add('active');
       document.getElementById('panel-' + t.dataset.tab).classList.add('active');
-      if (t.dataset.tab === 'map') renderMap();
+      if (t.dataset.tab === 'map') setTimeout(renderMap, 80); // let the panel size before Leaflet inits
     };
   });
 }
@@ -224,10 +229,35 @@ function setupDispatchForm() {
   };
 }
 
+function haversineKm(a, b) {
+  const R = 6371;
+  const toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat));
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 function dispatchCard(d) {
   const active = d.status === 'active';
   const latestByDrone = {};
   for (const f of d.frames) latestByDrone[f.droneId] = f;
+  const arrivedIds = new Set((d.arrived || []).map((a) => a.droneId));
+  const liveById = {};
+  state.drones.forEach((x) => (liveById[x.id] = x));
+  const droneRows = d.assignedDrones
+    .map((a) => {
+      const arrived = arrivedIds.has(a.id) || a.arrived;
+      const live = liveById[a.id];
+      let status;
+      if (arrived) status = '✅ reached location';
+      else if (active && live) status = `🛰️ en route · ${haversineKm(live, { lat: d.lat, lng: d.lng }).toFixed(2)} km away`;
+      else status = `${a.distanceKm} km away`;
+      const style = arrived ? ' style="border-color:#16a34a; color:#7cffb0"' : '';
+      const cam = arrived && active ? `<button class="btn sm primary" data-livecam="${a.id}">📹 Access live camera</button>` : '';
+      return `<span class="chip"${style}>🚁 ${esc(a.name)} · ${status}</span>${cam}`;
+    })
+    .join('');
   const tiles = d.assignedDrones
     .map((ad) => {
       const f = latestByDrone[ad.id];
@@ -249,7 +279,7 @@ function dispatchCard(d) {
       <span class="meta">${esc(d.address || d.lat.toFixed(4) + ', ' + d.lng.toFixed(4))} · ${timeAgo(d.timestamp)}</span>
     </div>
     ${d.description ? `<div class="interp" style="margin-top:6px">“${esc(d.description)}”</div>` : ''}
-    <div class="row" style="margin-top:8px">${d.assignedDrones.map((a) => `<span class="chip">🚁 ${esc(a.name)} · ${a.distanceKm}km</span>`).join('')}</div>
+    <div class="row" style="margin-top:8px; gap:6px; align-items:center">${droneRows}</div>
     <div class="footage">${tiles}</div>
     ${updates}
     ${active ? `<div class="row" style="margin-top:12px; gap:8px">
@@ -274,6 +304,7 @@ function renderDispatches() {
 
   const list = state.dispatches;
   wrap.innerHTML = list.length ? list.map(dispatchCard).join('') : `<div class="empty">No dispatches yet. Enter a location to send drones.</div>`;
+  wrap.querySelectorAll('[data-livecam]').forEach((b) => (b.onclick = () => openLive(b.dataset.livecam)));
 
   for (const [id, val] of Object.entries(saved)) {
     const el = document.getElementById(id);
@@ -310,81 +341,85 @@ function renderMF() {
     : `<div class="empty">Nothing has been sent to the main force yet.</div>`;
 }
 
-// ---------- map ----------
-let bounds = null;
-function computeBounds() {
-  const pts = state.drones.map((d) => ({ lat: d.lat, lng: d.lng }));
-  const c = CONFIG.cityCenter;
-  pts.push({ lat: c.lat, lng: c.lng });
-  let minLat = Math.min(...pts.map((p) => p.lat)), maxLat = Math.max(...pts.map((p) => p.lat));
-  let minLng = Math.min(...pts.map((p) => p.lng)), maxLng = Math.max(...pts.map((p) => p.lng));
-  const padLat = (maxLat - minLat) * 0.25 || 0.01;
-  const padLng = (maxLng - minLng) * 0.25 || 0.01;
-  bounds = { minLat: minLat - padLat, maxLat: maxLat + padLat, minLng: minLng - padLng, maxLng: maxLng + padLng };
-}
-const PAD = 40, W = 1000, H = 520;
-function project(lat, lng) {
-  const x = PAD + ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * (W - 2 * PAD);
-  const y = PAD + ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * (H - 2 * PAD);
-  return { x, y };
-}
-function unproject(x, y) {
-  const lng = bounds.minLng + ((x - PAD) / (W - 2 * PAD)) * (bounds.maxLng - bounds.minLng);
-  const lat = bounds.maxLat - ((y - PAD) / (H - 2 * PAD)) * (bounds.maxLat - bounds.minLat);
-  return { lat, lng };
-}
+// ---------- map (Leaflet + real map tiles) ----------
 const STATUS_COLOR = { monitoring: '#16a34a', alerting: '#f59e0b', dispatched: '#ef4444', offline: '#64748b' };
 
+let lmap = null;
+let mapMarkers = null;
+
+function initMap() {
+  const c = CONFIG.cityCenter;
+  lmap = L.map('map', { zoomControl: true, attributionControl: true }).setView([c.lat, c.lng], 14);
+  // Dark map tiles (free, no API key) to match the control-center theme.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    attribution: '© OpenStreetMap · © CARTO'
+  }).addTo(lmap);
+  mapMarkers = L.layerGroup().addTo(lmap);
+  lmap.on('click', (e) => {
+    state.pendingTarget = { lat: e.latlng.lat, lng: e.latlng.lng };
+    document.getElementById('d_lat').value = e.latlng.lat.toFixed(5);
+    document.getElementById('d_lng').value = e.latlng.lng.toFixed(5);
+    renderMap();
+    document.querySelector('.tab[data-tab="dispatch"]').click();
+  });
+}
+
+function emojiIcon(txt, size) {
+  return L.divIcon({
+    className: 'emoji-pin',
+    html: `<div style="font-size:${size}px;line-height:1;text-shadow:0 1px 3px #000">${txt}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2]
+  });
+}
+function droneIcon(d) {
+  const col = STATUS_COLOR[d.status] || '#64748b';
+  const ring = d.connected ? `box-shadow:0 0 0 4px ${col}55;` : '';
+  return L.divIcon({
+    className: 'drone-pin',
+    html: `<div style="text-align:center">
+        <div style="font-size:11px;font-weight:600;color:#e7eef6;text-shadow:0 1px 3px #000;white-space:nowrap">🚁 ${esc(d.name.replace('Drone ', 'D'))}</div>
+        <div style="margin:1px auto 0;width:15px;height:15px;border-radius:50%;background:${col};border:2px solid #0d1a27;${ring}"></div>
+      </div>`,
+    iconSize: [70, 32],
+    iconAnchor: [35, 24]
+  });
+}
+
 function renderMap() {
-  const svg = document.getElementById('map');
-  if (!svg || state.drones.length === 0) return;
-  computeBounds();
-  let s = '';
-  // grid
-  for (let gx = PAD; gx <= W - PAD; gx += (W - 2 * PAD) / 8) s += `<line x1="${gx}" y1="${PAD}" x2="${gx}" y2="${H - PAD}" stroke="#12283c" stroke-width="1"/>`;
-  for (let gy = PAD; gy <= H - PAD; gy += (H - 2 * PAD) / 6) s += `<line x1="${PAD}" y1="${gy}" x2="${W - PAD}" y2="${gy}" stroke="#12283c" stroke-width="1"/>`;
-  s += `<rect x="${PAD}" y="${PAD}" width="${W - 2 * PAD}" height="${H - 2 * PAD}" fill="none" stroke="#274b6e" stroke-width="1.5" rx="10"/>`;
+  if (!document.getElementById('map') || !window.L) return;
+  const visible = document.getElementById('panel-map').classList.contains('active');
+  if (!lmap) {
+    if (!visible) return; // initialise only once the map tab is opened (needs a sized container)
+    initMap();
+  }
+  lmap.invalidateSize();
+  mapMarkers.clearLayers();
 
-  // incident markers (pending alerts + active dispatches)
+  // incidents (pending alerts)
   for (const a of state.alerts.filter((x) => x.status === 'pending_review' && typeof x.lat === 'number')) {
-    const p = project(a.lat, a.lng);
-    s += `<circle cx="${p.x}" cy="${p.y}" r="16" fill="#e0842b22" stroke="#e0842b" stroke-width="1.5"><animate attributeName="r" values="12;22;12" dur="1.8s" repeatCount="indefinite"/></circle>
-          <text x="${p.x}" y="${p.y + 5}" text-anchor="middle" font-size="15">${incidentMeta(a.incidentType).icon}</text>`;
+    L.marker([a.lat, a.lng], { icon: emojiIcon(incidentMeta(a.incidentType).icon, 24) })
+      .bindTooltip(`${incidentMeta(a.incidentType).label} — 🚁 ${esc(a.droneName)}`)
+      .addTo(mapMarkers);
   }
+  // active dispatch targets + 200 m arrival radius
   for (const d of state.dispatches.filter((x) => x.status === 'active')) {
-    const p = project(d.lat, d.lng);
-    s += `<circle cx="${p.x}" cy="${p.y}" r="26" fill="none" stroke="#ef4444" stroke-dasharray="5 4" stroke-width="2"><animate attributeName="r" values="20;34;20" dur="2s" repeatCount="indefinite"/></circle>
-          <text x="${p.x}" y="${p.y + 6}" text-anchor="middle" font-size="17">🎯</text>`;
+    L.circle([d.lat, d.lng], { radius: 200, color: '#ef4444', weight: 1.5, fillOpacity: 0.08, dashArray: '5 5' }).addTo(mapMarkers);
+    L.marker([d.lat, d.lng], { icon: emojiIcon('🎯', 24) }).bindTooltip(`Dispatch: ${esc(d.address || 'target')}`).addTo(mapMarkers);
   }
-
-  // pending target from map click
+  // pending target from a map click
   if (state.pendingTarget) {
-    const p = project(state.pendingTarget.lat, state.pendingTarget.lng);
-    s += `<circle cx="${p.x}" cy="${p.y}" r="10" fill="#e0842b" stroke="#fff" stroke-width="2"/><text x="${p.x}" y="${p.y - 14}" text-anchor="middle" fill="#e0842b" font-size="12" font-weight="700">target</text>`;
+    L.marker([state.pendingTarget.lat, state.pendingTarget.lng], { icon: emojiIcon('📍', 26) }).bindTooltip('Dispatch target').addTo(mapMarkers);
   }
-
   // drones
   for (const d of state.drones) {
-    const p = project(d.lat, d.lng);
-    const col = STATUS_COLOR[d.status] || '#64748b';
-    const ring = d.connected ? `<circle cx="${p.x}" cy="${p.y}" r="14" fill="none" stroke="${col}" stroke-width="1.5" opacity="0.5"><animate attributeName="r" values="11;18;11" dur="2.4s" repeatCount="indefinite"/></circle>` : '';
-    s += `${ring}<circle cx="${p.x}" cy="${p.y}" r="8" fill="${col}" stroke="#0d1a27" stroke-width="2"/>
-          <text x="${p.x}" y="${p.y - 12}" text-anchor="middle" fill="#9db6cf" font-size="11">🚁 ${esc(d.name.replace('Drone ', 'D'))}</text>`;
+    if (typeof d.lat !== 'number') continue;
+    L.marker([d.lat, d.lng], { icon: droneIcon(d) })
+      .bindTooltip(`🚁 ${esc(d.name)} · ${esc(d.status)}${d.connected ? ' · online' : ''} · ${esc(d.sector)}`)
+      .addTo(mapMarkers);
   }
-  svg.innerHTML = s;
-
-  svg.onclick = (e) => {
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX; pt.y = e.clientY;
-    const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
-    const geo = unproject(loc.x, loc.y);
-    state.pendingTarget = geo;
-    document.getElementById('d_lat').value = geo.lat.toFixed(5);
-    document.getElementById('d_lng').value = geo.lng.toFixed(5);
-    renderMap();
-    // jump to dispatch tab for convenience
-    document.querySelector('.tab[data-tab="dispatch"]').click();
-  };
 }
 
 // ---------- drone fleet list + on-demand live view ----------
