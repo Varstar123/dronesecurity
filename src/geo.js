@@ -15,11 +15,13 @@ export function haversineKm(a, b) {
 }
 
 // Return drones sorted by distance to `target`, annotated with distanceKm.
-// If some drones fall within `radiusKm` we return those; otherwise we return
-// the `minCount` nearest so a dispatch always has something to send.
+// Only ONLINE drones (a real phone is controlling them) can be dispatched.
+// Returns them ranked by distance to the target. If any are within `radiusKm`
+// we return those (up to 4); otherwise the nearest online drones respond
+// regardless of distance — because they're the only ones that actually can.
 export function findNearbyDrones(target, drones, { radiusKm = 3, minCount = 3 } = {}) {
   const ranked = drones
-    .filter((d) => d.status !== 'offline' && d.status !== 'dispatched' && typeof d.lat === 'number')
+    .filter((d) => d.connected && d.status !== 'dispatched' && typeof d.lat === 'number')
     .map((d) => ({ ...d, distanceKm: haversineKm(target, { lat: d.lat, lng: d.lng }) }))
     .sort((x, y) => x.distanceKm - y.distanceKm);
 
