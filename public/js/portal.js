@@ -21,6 +21,7 @@ async function init() {
   setupDispatchForm();
   setupModal();
   setupLiveModal();
+  setupClearModal();
   document.getElementById('resetBtn').onclick = async () => {
     if (confirm('Clear all alerts, dispatches and logs? (drones are kept)')) await api('/api/admin/reset', { method: 'POST' });
   };
@@ -467,6 +468,39 @@ function openModal({ title, desc, okLabel, onOk }) {
   document.getElementById('modalBack').classList.add('open');
 }
 function closeModal() { document.getElementById('modalBack').classList.remove('open'); modalOnOk = null; }
+
+// ---------- clear captured images (secret-key protected) ----------
+function setupClearModal() {
+  const back = document.getElementById('clearBack');
+  document.getElementById('clearImgBtn').onclick = () => {
+    document.getElementById('clearKey').value = '';
+    document.getElementById('clearMsg').textContent = '';
+    back.classList.add('open');
+    document.getElementById('clearKey').focus();
+  };
+  document.getElementById('clearCancel').onclick = () => back.classList.remove('open');
+  back.onclick = (e) => { if (e.target.id === 'clearBack') back.classList.remove('open'); };
+  document.getElementById('clearDelete').onclick = () => clearImages('delete');
+  document.getElementById('clearArchive').onclick = () => clearImages('archive');
+}
+
+async function clearImages(mode) {
+  const secretKey = document.getElementById('clearKey').value;
+  const msg = document.getElementById('clearMsg');
+  if (!secretKey) { msg.style.color = '#f6b45f'; msg.textContent = 'Enter the authorization key.'; return; }
+  msg.style.color = ''; msg.textContent = 'Working…';
+  try {
+    const res = await api('/api/admin/clear-images', { method: 'POST', body: { secretKey, mode } });
+    msg.style.color = '#4be3d6';
+    msg.textContent = '✅ ' + res.message;
+    refreshAlerts();
+    refreshDispatches();
+    setTimeout(() => document.getElementById('clearBack').classList.remove('open'), 1800);
+  } catch (e) {
+    msg.style.color = '#ff6b6b';
+    msg.textContent = '❌ ' + e.message;
+  }
+}
 
 // ---------- toast + beep ----------
 function toast(a) {
