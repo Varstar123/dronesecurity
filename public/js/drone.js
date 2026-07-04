@@ -23,13 +23,15 @@ init();
 async function init() {
   await loadConfig();
   const badge = $('aiBadge');
-  badge.textContent = `AI: ${CONFIG.aiLabel || 'Simulation'}`;
+  badge.textContent = `AI: ${CONFIG.aiLabel || 'Standby'}`;
   badge.className = 'badge ' + (CONFIG.aiMode === 'mock' ? 'mock' : 'live');
 
-  // scenario select (mock AI only) — options can't hold SVG, so text only
-  const opts = ['<option value="auto">Auto (random)</option>']
+  // Scenario override (only relevant when no live AI provider is configured;
+  // a real provider analyses the actual camera image, so hide it then).
+  const opts = ['<option value="auto">Auto</option>']
     .concat(Object.entries(CONFIG.incidentTypes).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`));
   $('scenario').innerHTML = opts.join('');
+  if (CONFIG.aiMode !== 'mock') $('scenarioBox').style.display = 'none';
 
   st.drones = await api('/api/drones');
   st.droneId = randomFreeDroneId(); // default to a drone no other device is using
@@ -162,6 +164,7 @@ function stopCamera() {
   st.stream = null;
   $('video').srcObject = null;
   $('camOff').style.display = 'flex';
+  $('verdict').classList.add('hidden'); // clear the stale last-scan verdict
   $('scanBtn').disabled = true;
   $('stopCam').disabled = true;
   $('autoChk').checked = false;

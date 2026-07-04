@@ -30,11 +30,7 @@ const CLAUDE_MODEL = process.env.AI_MODEL || 'claude-opus-4-8';
 const GROQ_MODEL = process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 export const AI_LABEL =
-  AI_MODE === 'groq'
-    ? `Groq Vision (${GROQ_MODEL.split('/').pop()})`
-    : AI_MODE === 'claude'
-    ? `Claude Vision (${CLAUDE_MODEL})`
-    : 'Simulation';
+  AI_MODE === 'groq' ? 'Groq Vision' : AI_MODE === 'claude' ? 'Claude Vision' : 'Standby';
 
 let claude = null;
 if (AI_MODE === 'claude') {
