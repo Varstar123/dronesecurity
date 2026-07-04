@@ -1,4 +1,4 @@
-import { api, esc, timeAgo, fmtTime, loadConfig, CONFIG, incidentMeta, SEV_CLASS } from '/js/common.js';
+import { api, esc, timeAgo, fmtTime, loadConfig, CONFIG, incidentMeta, SEV_CLASS, icon, incidentIcon, refreshIcons } from '/js/common.js';
 
 const socket = io();
 const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: null, liveDroneId: null };
@@ -14,7 +14,7 @@ async function init() {
   const sel = document.getElementById('d_type');
   sel.innerHTML = Object.entries(CONFIG.incidentTypes)
     .filter(([k]) => k !== 'normal')
-    .map(([k, v]) => `<option value="${k}" ${k === 'suspicious_activity' ? 'selected' : ''}>${v.icon} ${esc(v.label)}</option>`)
+    .map(([k, v]) => `<option value="${k}" ${k === 'suspicious_activity' ? 'selected' : ''}>${esc(v.label)}</option>`)
     .join('');
 
   setupTabs();
@@ -30,6 +30,7 @@ async function init() {
   socket.emit('police:join');
   await Promise.all([refreshDrones(), refreshAlerts(), refreshDispatches(), refreshMF()]);
   setStats(await api('/api/stats'));
+  refreshIcons();
   setInterval(() => { renderAlerts(); renderDispatches(); renderMF(); }, 30000); // refresh "x ago"
 }
 
@@ -42,7 +43,7 @@ function wireSocket() {
   socket.on('dispatch:frame', ({ dispatchId, frame }) => onFrame(dispatchId, frame));
   socket.on('dispatch:updated', () => refreshDispatches());
   socket.on('dispatch:arrived', (a) => {
-    toast({ incidentType: 'normal', title: `🚁 ${a.droneName} reached the location`, sector: 'Dispatch', interpretation: 'Drone in position — live camera available for monitoring.' });
+    toast({ incidentType: 'normal', title: `${a.droneName} reached the location`, sector: 'Dispatch', interpretation: 'Drone in position — live camera available for monitoring.' });
     beep();
     refreshDispatches();
   });
@@ -92,35 +93,41 @@ function setupTabs() {
   });
 }
 
-// ---------- alerts ----------
+// ---------- alerts (compact card, full detail on click) ----------
 function alertCard(a, reviewed) {
   const m = incidentMeta(a.incidentType);
   const conf = Math.round((a.confidence || 0) * 100);
-  const img = a.imageUrl
-    ? `<img class="thumb" src="${a.imageUrl}" alt="frame" />`
-    : `<div class="thumb placeholder">${m.icon}</div>`;
-  const status = reviewed
-    ? `<span class="chip">${a.status === 'escalated' ? '📣 Escalated to main force' : '✅ Dismissed'}</span>`
-    : '';
+  const sev = `<span class="sev ${SEV_CLASS[a.severity] || 'sev-medium'}">${esc(a.severity)}</span>`;
+  const sourceLabel = a.source === 'mock-simulation' ? 'Simulated' : a.source && a.source.startsWith('groq') ? 'Groq Vision' : a.source && a.source.startsWith('claude') ? 'Claude Vision' : esc(a.source || '');
+
   const actions = reviewed
-    ? (a.reviewNote ? `<div class="meta">Note: “${esc(a.reviewNote)}” — ${esc(a.reviewedBy || '')}</div>` : `<div class="meta">by ${esc(a.reviewedBy || '')}</div>`)
-    : `<div class="actions">
-         <button class="btn danger" data-esc="${a.id}">📣 Escalate to Main Force</button>
-         <button class="btn primary" data-dis="${a.id}">✅ Situation OK — Resume</button>
+    ? `<div class="ac-actions"><span class="chip">${a.status === 'escalated' ? icon('megaphone') + ' Escalated to main force' : icon('check') + ' Dismissed'}</span>${a.reviewNote ? `<span class="meta">“${esc(a.reviewNote)}” — ${esc(a.reviewedBy || '')}</span>` : ''}</div>`
+    : `<div class="ac-actions">
+         <button class="btn danger sm" data-esc="${a.id}">${icon('megaphone')} Escalate to Main Force</button>
+         <button class="btn primary sm" data-dis="${a.id}">${icon('check')} Situation OK — Resume</button>
        </div>`;
-  return `<div class="card">
-    ${img}
-    <div class="body">
-      <div class="row">
-        <span class="sev ${SEV_CLASS[a.severity] || 'sev-medium'}">${esc(a.severity)}</span>
-        <h3>${m.icon} ${esc(a.title)}</h3>
+
+  const thumb = a.imageUrl
+    ? `<img class="ac-thumb" src="${a.imageUrl}" alt="captured frame" />`
+    : `<div class="ac-thumb ac-thumb-empty" style="color:${m.color}">${incidentIcon(a.incidentType)}</div>`;
+
+  return `<div class="alert-card ${reviewed ? 'reviewed' : ''}">
+    <div class="ac-head" data-toggle="${a.id}">
+      <span class="ac-ic" style="color:${m.color}">${icon(m.lucide)}</span>
+      <div class="ac-main">
+        <div class="ac-title">${esc(a.title)} ${sev}</div>
+        <div class="ac-sub">${icon('bot')} ${esc(a.droneName)} · ${icon('map-pin')} ${esc(a.sector)} · ${icon('clock')} ${timeAgo(a.timestamp)}</div>
+        <div class="ac-snippet">${esc(a.interpretation)}</div>
       </div>
-      <div class="meta">🚁 ${esc(a.droneName)} · ${esc(a.sector)} · ${timeAgo(a.timestamp)} · <span class="chip">${a.source === 'claude-vision' ? 'Claude Vision' : 'Simulated'}</span></div>
-      <div class="interp">🤖 “${esc(a.interpretation)}”</div>
-      <div class="meta">Suggested: ${esc(a.recommendedAction)}</div>
-      <div class="row"><span class="meta" style="width:70px">Confidence</span><div class="conf-bar" style="flex:1"><span style="width:${conf}%"></span></div><span class="meta">${conf}%</span></div>
-      ${status}
-      ${actions}
+      <span class="ac-chevron">${icon('chevron-down')}</span>
+    </div>
+    ${actions}
+    <div class="ac-details">
+      ${thumb}
+      <div class="interp" style="margin-top:10px">“${esc(a.interpretation)}”</div>
+      <div class="meta" style="margin-top:8px">${icon('lightbulb')} Suggested: ${esc(a.recommendedAction)}</div>
+      <div class="row" style="margin-top:8px"><span class="meta" style="width:78px">Confidence</span><div class="conf-bar" style="flex:1"><span style="width:${conf}%"></span></div><span class="meta">${conf}%</span></div>
+      <div class="meta" style="margin-top:6px">${icon('crosshair')} ${typeof a.lat === 'number' ? a.lat.toFixed(5) + ', ' + a.lng.toFixed(5) : '—'} · ${icon('cpu')} ${sourceLabel}</div>
     </div>
   </div>`;
 }
@@ -132,8 +139,11 @@ function renderAlerts() {
   const h = document.getElementById('alertsHistory');
   p.innerHTML = pending.length ? pending.map((a) => alertCard(a, false)).join('') : `<div class="empty">No pending alerts. Drones are monitoring…</div>`;
   h.innerHTML = reviewed.length ? reviewed.map((a) => alertCard(a, true)).join('') : `<div class="empty">Nothing reviewed yet.</div>`;
-  p.querySelectorAll('[data-esc]').forEach((b) => (b.onclick = () => reviewAlert(b.dataset.esc, 'escalate')));
-  p.querySelectorAll('[data-dis]').forEach((b) => (b.onclick = () => reviewAlert(b.dataset.dis, 'dismiss')));
+  for (const wrap of [p, h])
+    wrap.querySelectorAll('[data-toggle]').forEach((head) => (head.onclick = () => head.closest('.alert-card').classList.toggle('open')));
+  p.querySelectorAll('[data-esc]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); reviewAlert(b.dataset.esc, 'escalate'); }));
+  p.querySelectorAll('[data-dis]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); reviewAlert(b.dataset.dis, 'dismiss'); }));
+  refreshIcons();
 }
 
 function reviewAlert(id, kind) {
@@ -141,7 +151,7 @@ function reviewAlert(id, kind) {
   if (!a) return;
   const escalate = kind === 'escalate';
   openModal({
-    title: escalate ? '📣 Escalate to Main Force' : '✅ Dismiss — Resume Monitoring',
+    title: escalate ? 'Escalate to Main Force' : 'Dismiss — Resume Monitoring',
     desc: escalate
       ? `Confirm this is a real "${incidentMeta(a.incidentType).label}" and send it to the main police force.`
       : `Mark this as not needing police help. The drone will resume monitoring.`,
@@ -218,16 +228,22 @@ function extractCoords(str) {
 }
 
 const DISPATCH_PRESETS = [
-  { icon: '💍', label: 'Jewellery robbery', type: 'theft_robbery', desc: 'Armed robbery reported at a jewellery shop.' },
-  { icon: '🏦', label: 'Bank robbery', type: 'theft_robbery', desc: 'Robbery in progress at a bank.' },
-  { icon: '🔫', label: 'Armed person', type: 'weapon_threat', desc: 'Armed person threatening people at the location.' },
-  { icon: '🧑‍🤝‍🧑', label: 'Kidnapping', type: 'suspicious_activity', desc: 'Possible abduction / kidnapping reported.' },
-  { icon: '💣', label: 'Bomb threat', type: 'abandoned_object', desc: 'Suspicious package / bomb threat reported.' },
-  { icon: '🥊', label: 'Violence', type: 'violence_assault', desc: 'Violent assault / fight reported.' },
-  { icon: '🔥', label: 'Fire', type: 'building_fire', desc: 'Building fire reported at the location.' }
+  { icon: 'gem', label: 'Jewellery robbery', type: 'theft_robbery', desc: 'Armed robbery reported at a jewellery shop.' },
+  { icon: 'landmark', label: 'Bank robbery', type: 'theft_robbery', desc: 'Robbery in progress at a bank.' },
+  { icon: 'crosshair', label: 'Armed person', type: 'weapon_threat', desc: 'Armed person threatening people at the location.' },
+  { icon: 'user-x', label: 'Kidnapping', type: 'suspicious_activity', desc: 'Possible abduction / kidnapping reported.' },
+  { icon: 'bomb', label: 'Bomb threat', type: 'abandoned_object', desc: 'Suspicious package / bomb threat reported.' },
+  { icon: 'swords', label: 'Violence', type: 'violence_assault', desc: 'Violent assault / fight reported.' },
+  { icon: 'flame', label: 'Fire', type: 'building_fire', desc: 'Building fire reported at the location.' }
 ];
 
 function setupDispatchForm() {
+  const clearDisp = document.getElementById('clearDispBtn');
+  if (clearDisp)
+    clearDisp.onclick = async () => {
+      if (confirm('Clear all resolved dispatches from the list?')) await api('/api/dispatches/clear-resolved', { method: 'POST' });
+    };
+
   // Known-location dropdown → fills address + coordinates by name.
   const place = document.getElementById('d_place');
   place.innerHTML =
@@ -246,7 +262,7 @@ function setupDispatchForm() {
   // Quick emergency-report presets → fill incident type + details.
   const row = document.getElementById('presetRow');
   row.innerHTML = DISPATCH_PRESETS.map(
-    (p, i) => `<button class="btn sm" data-preset="${i}">${p.icon} ${esc(p.label)}</button>`
+    (p, i) => `<button class="btn sm" data-preset="${i}">${icon(p.icon)} ${esc(p.label)}</button>`
   ).join('');
   row.querySelectorAll('[data-preset]').forEach(
     (b) =>
@@ -345,12 +361,12 @@ function dispatchCard(d) {
       const arrived = arrivedIds.has(a.id) || a.arrived;
       const live = liveById[a.id];
       let status;
-      if (arrived) status = '✅ reached location';
-      else if (active && live) status = `🛰️ en route · ${haversineKm(live, { lat: d.lat, lng: d.lng }).toFixed(2)} km away`;
+      if (arrived) status = `${icon('circle-check')} reached location`;
+      else if (active && live) status = `${icon('navigation')} en route · ${haversineKm(live, { lat: d.lat, lng: d.lng }).toFixed(2)} km away`;
       else status = `${a.distanceKm} km away`;
       const style = arrived ? ' style="border-color:#16a34a; color:#7cffb0"' : '';
-      const cam = arrived && active ? `<button class="btn sm primary" data-livecam="${a.id}">📹 Access live camera</button>` : '';
-      return `<span class="chip"${style}>🚁 ${esc(a.name)} · ${status}</span>${cam}`;
+      const cam = arrived && active ? `<button class="btn sm primary" data-livecam="${a.id}">${icon('video')} Access live camera</button>` : '';
+      return `<span class="chip"${style}>${icon('bot')} ${esc(a.name)} · ${status}</span>${cam}`;
     })
     .join('');
   const tiles = d.assignedDrones
@@ -359,7 +375,7 @@ function dispatchCard(d) {
       if (f) {
         return `<div class="frame-tile"><img src="${f.url}" alt="live" /><span class="live">● LIVE</span><span class="lbl">${esc(ad.name)}</span></div>`;
       }
-      return `<div class="frame-tile sim-tile"><div class="scan"></div>🚁<div>${esc(ad.name)}</div><div>surrounding…</div></div>`;
+      return `<div class="frame-tile sim-tile"><div class="scan"></div>${icon('bot')}<div>${esc(ad.name)}</div><div>surrounding…</div></div>`;
     })
     .join('');
   const m = incidentMeta(d.incidentType);
@@ -370,7 +386,7 @@ function dispatchCard(d) {
   return `<div class="disp-card">
     <div class="disp-head">
       <span class="sev ${active ? 'sev-critical' : 'sev-none'}">${active ? 'ACTIVE' : 'RESOLVED'}</span>
-      <h3 style="margin:0">${m.icon} ${esc(m.label)}</h3>
+      <h3 style="margin:0"><span style="color:${m.color}">${icon(m.lucide)}</span> ${esc(m.label)}</h3>
       <span class="meta">${esc(d.address || d.lat.toFixed(4) + ', ' + d.lng.toFixed(4))} · ${timeAgo(d.timestamp)}</span>
     </div>
     ${d.description ? `<div class="interp" style="margin-top:6px">“${esc(d.description)}”</div>` : ''}
@@ -379,8 +395,8 @@ function dispatchCard(d) {
     ${updates}
     ${active ? `<div class="row" style="margin-top:12px; gap:8px">
         <input id="conv_${d.id}" placeholder="Convey info to main force (e.g. 2 suspects, north exit)" style="flex:1" />
-        <button class="btn warn" data-convey="${d.id}">Convey</button>
-        <button class="btn primary" data-resolve="${d.id}">Resolve</button>
+        <button class="btn warn" data-convey="${d.id}">${icon('send')} Convey</button>
+        <button class="btn primary" data-resolve="${d.id}">${icon('circle-check')} Resolve</button>
       </div>` : ''}
   </div>`;
 }
@@ -419,6 +435,10 @@ function renderDispatches() {
     await api(`/api/dispatches/${b.dataset.convey}/convey`, { method: 'POST', body: { info: inp.value, officer: 'Drone Police Officer' } });
     inp.value = '';
   }));
+  // Show the "clear resolved" button only when there is resolved history.
+  const clearBtn = document.getElementById('clearDispBtn');
+  if (clearBtn) clearBtn.style.display = state.dispatches.some((d) => d.status !== 'active') ? '' : 'none';
+  refreshIcons();
 }
 
 // ---------- main force ----------
@@ -429,11 +449,12 @@ function renderMF() {
         const m = incidentMeta(r.incidentType);
         return `<div class="log-item">
           <div class="t">${new Date(r.timestamp).toLocaleString()} · ${r.sourceType === 'alert' ? 'Escalation' : 'Field update'} · by ${esc(r.officer)}</div>
-          <div style="margin-top:4px"><b>${m.icon} ${esc(r.title)}</b> — ${esc(r.location)} · 🚁 ${esc(r.droneName || '')}</div>
+          <div style="margin-top:4px"><b><span style="color:${m.color}">${icon(m.lucide)}</span> ${esc(r.title)}</b> — ${esc(r.location)} · ${icon('bot')} ${esc(r.droneName || '')}</div>
           <div class="interp" style="margin-top:4px">“${esc(r.conveyed)}”</div>
         </div>`;
       }).join('')
     : `<div class="empty">Nothing has been sent to the main force yet.</div>`;
+  refreshIcons();
 }
 
 // ---------- map (Leaflet + real map tiles) ----------
@@ -461,10 +482,10 @@ function initMap() {
   });
 }
 
-function emojiIcon(txt, size) {
+function lucidePin(name, color, size) {
   return L.divIcon({
-    className: 'emoji-pin',
-    html: `<div style="font-size:${size}px;line-height:1;text-shadow:0 1px 3px #000">${txt}</div>`,
+    className: 'lucide-pin',
+    html: `<div style="color:${color};font-size:${size}px;line-height:1;filter:drop-shadow(0 1px 2px #000)">${icon(name)}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2]
   });
@@ -476,7 +497,7 @@ function droneIcon(d) {
   return L.divIcon({
     className: 'drone-pin',
     html: `<div style="text-align:center">
-        <div style="font-size:11px;font-weight:600;color:#e7eef6;text-shadow:0 1px 3px #000;white-space:nowrap">🚁 ${esc(d.name.replace('Drone ', 'D'))}</div>
+        <div style="font-size:11px;font-weight:600;color:#e7eef6;text-shadow:0 1px 3px #000;white-space:nowrap">${esc(d.name.replace('Drone ', 'D'))}</div>
         <div style="margin:1px auto 0;width:15px;height:15px;border-radius:50%;background:${col};border:2px solid #0d1a27;${ring}"></div>
       </div>`,
     iconSize: [70, 32],
@@ -496,42 +517,46 @@ function renderMap() {
 
   // incidents (pending alerts)
   for (const a of state.alerts.filter((x) => x.status === 'pending_review' && typeof x.lat === 'number')) {
-    L.marker([a.lat, a.lng], { icon: emojiIcon(incidentMeta(a.incidentType).icon, 24) })
-      .bindTooltip(`${incidentMeta(a.incidentType).label} — 🚁 ${esc(a.droneName)}`)
+    const m = incidentMeta(a.incidentType);
+    L.marker([a.lat, a.lng], { icon: lucidePin(m.lucide, m.color, 22) })
+      .bindTooltip(`${m.label} — ${esc(a.droneName)}`)
       .addTo(mapMarkers);
   }
   // active dispatch targets + 20 m arrival radius
   for (const d of state.dispatches.filter((x) => x.status === 'active')) {
     L.circle([d.lat, d.lng], { radius: 20, color: '#ef4444', weight: 1.5, fillOpacity: 0.12, dashArray: '4 4' }).addTo(mapMarkers);
-    L.marker([d.lat, d.lng], { icon: emojiIcon('🎯', 24) }).bindTooltip(`Dispatch: ${esc(d.address || 'target')}`).addTo(mapMarkers);
+    L.marker([d.lat, d.lng], { icon: lucidePin('crosshair', '#ef4444', 24) }).bindTooltip(`Dispatch: ${esc(d.address || 'target')}`).addTo(mapMarkers);
   }
   // pending target from a map click
   if (state.pendingTarget) {
-    L.marker([state.pendingTarget.lat, state.pendingTarget.lng], { icon: emojiIcon('📍', 26) }).bindTooltip('Dispatch target').addTo(mapMarkers);
+    L.marker([state.pendingTarget.lat, state.pendingTarget.lng], { icon: lucidePin('map-pin', '#e0842b', 26) }).bindTooltip('Dispatch target').addTo(mapMarkers);
   }
   // drones
   for (const d of state.drones) {
     if (typeof d.lat !== 'number') continue;
     L.marker([d.lat, d.lng], { icon: droneIcon(d) })
-      .bindTooltip(`🚁 ${esc(d.name)} · ${esc(d.status)}${d.connected ? ' · online' : ''} · ${esc(d.sector)}`)
+      .bindTooltip(`${esc(d.name)} · ${d.connected ? esc(d.status) + ' · online' : 'offline'} · ${esc(d.sector)}`)
       .addTo(mapMarkers);
   }
+  refreshIcons();
 }
 
 // ---------- drone fleet list + on-demand live view ----------
 function droneRow(d) {
   const eff = d.connected ? d.status : 'offline';
   const col = STATUS_COLOR[eff] || '#64748b';
+  const b = d.battery;
+  const battIcon = b > 60 ? 'battery-full' : b > 25 ? 'battery-medium' : b > 0 ? 'battery-low' : 'battery';
   return `<div class="card" style="padding:0">
     <div class="body" style="gap:6px; padding:12px 14px">
       <div class="row" style="justify-content:space-between">
-        <h3 style="font-size:15px">🚁 ${esc(d.name)}</h3>
+        <h3 style="font-size:15px">${icon('bot')} ${esc(d.name)}</h3>
         <span class="chip" style="border-color:${col}; color:${col}">${esc(eff)}</span>
       </div>
-      <div class="meta">${esc(d.sector)}</div>
-      <div class="meta">${d.connected ? '🟢 online' : '⚪ offline'} · 🔋 ${d.battery}%${d.liveView ? ' · 📹 viewing' : ''}</div>
+      <div class="meta">${icon('map-pin')} ${esc(d.sector)}</div>
+      <div class="meta"><span style="color:${d.connected ? '#16a34a' : '#64748b'}">${icon(d.connected ? 'circle-check' : 'circle')}</span> ${d.connected ? 'online' : 'offline'} · ${icon(battIcon)} ${b}%${d.liveView ? ' · ' + icon('video') + ' viewing' : ''}</div>
       <div class="actions">
-        <button class="btn sm ${d.connected ? 'primary' : ''}" data-live="${d.id}" ${d.connected ? '' : 'disabled'}>📹 Live view</button>
+        <button class="btn sm ${d.connected ? 'primary' : ''}" data-live="${d.id}" ${d.connected ? '' : 'disabled'}>${icon('video')} Live view</button>
       </div>
     </div>
   </div>`;
@@ -541,6 +566,7 @@ function renderDroneList() {
   if (!wrap) return;
   wrap.innerHTML = state.drones.map(droneRow).join('');
   wrap.querySelectorAll('[data-live]').forEach((b) => (b.onclick = () => openLive(b.dataset.live)));
+  refreshIcons();
 }
 
 function setupLiveModal() {
@@ -550,7 +576,7 @@ function setupLiveModal() {
 async function openLive(id) {
   const d = state.drones.find((x) => x.id === id);
   state.liveDroneId = id;
-  document.getElementById('liveTitle').textContent = `📹 Live camera — ${d ? d.name : id}`;
+  document.getElementById('liveTitle').textContent = `Live camera — ${d ? d.name : id}`;
   const img = document.getElementById('liveImg');
   img.style.display = 'none';
   img.removeAttribute('src');
@@ -639,9 +665,10 @@ function toast(a) {
   const m = incidentMeta(a.incidentType);
   const el = document.createElement('div');
   el.className = 'toast';
-  el.innerHTML = `<div class="th">${m.icon} ${esc(a.title || m.label)}</div><div class="tb">🚁 ${esc(a.sector || '')} — ${esc((a.interpretation || '').slice(0, 90))}</div>`;
+  el.innerHTML = `<div class="th"><span style="color:${m.color}">${icon(m.lucide)}</span> ${esc(a.title || m.label)}</div><div class="tb">${esc(a.sector || '')} — ${esc((a.interpretation || '').slice(0, 90))}</div>`;
   el.onclick = () => el.remove();
   document.getElementById('toasts').appendChild(el);
+  refreshIcons();
   setTimeout(() => el.remove(), 7000);
 }
 let actx;

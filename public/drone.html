@@ -9,14 +9,15 @@
 </head>
 <body>
   <div class="topbar">
-    <div class="logo">🚁</div>
+    <div class="logo"><i data-lucide="plane"></i></div>
     <div>
       <h1>Drone Camera Unit</h1>
       <div class="sub">Point the camera at the scene — the AI reports incidents to the police portal</div>
     </div>
     <div class="spacer"></div>
+    <span id="batteryBadge" class="badge" style="display:none"></span>
     <span id="aiBadge" class="badge mock">AI: —</span>
-    <a class="navlink" href="/" target="_blank">🖥️ Police Portal</a>
+    <a class="navlink" href="/" target="_blank"><i data-lucide="monitor"></i> Police Portal</a>
   </div>
 
   <div class="drone-shell">
@@ -33,11 +34,11 @@
 
     <div class="cam-wrap" style="margin-top:14px">
       <video id="video" playsinline muted></video>
-      <div class="live-chip" id="liveChip">🔴 LIVE · police viewing</div>
+      <div class="live-chip" id="liveChip">● LIVE · police viewing</div>
       <div class="cam-off" id="camOff">
-        <div style="font-size:44px">📷</div>
+        <div style="font-size:44px"><i data-lucide="camera"></i></div>
         <div>Camera is off</div>
-        <button class="btn primary" id="startCam">Start camera</button>
+        <button class="btn primary" id="startCam"><i data-lucide="camera"></i> Start camera</button>
       </div>
       <div class="verdict hidden" id="verdict">
         <div class="vt" id="vTitle"></div>
@@ -52,13 +53,20 @@
     </div>
 
     <div class="dispatch-banner" id="dispatchBanner">
-      <div style="font-weight:800; font-size:16px">🚨 DISPATCH — proceed &amp; stream</div>
+      <div style="font-weight:800; font-size:16px"><i data-lucide="siren"></i> DISPATCH — proceed &amp; stream</div>
       <div class="small" id="dispatchInfo" style="margin-top:4px"></div>
+      <div class="tracker" id="dispatchTracker" style="display:none">
+        <div class="tracker-arrow" id="trackerArrow"><i data-lucide="navigation"></i></div>
+        <div>
+          <div class="tracker-dist" id="trackerDist">—</div>
+          <div class="small" id="trackerDir">acquiring GPS…</div>
+        </div>
+      </div>
     </div>
 
     <div class="controls">
-      <button class="btn primary" id="scanBtn" disabled>🔍 Scan now</button>
-      <button class="btn" id="stopCam" disabled>⏹ Stop camera</button>
+      <button class="btn primary" id="scanBtn" disabled><i data-lucide="scan-search"></i> Scan now</button>
+      <button class="btn" id="stopCam" disabled><i data-lucide="square"></i> Stop camera</button>
     </div>
 
     <div class="toggle-row">
@@ -84,10 +92,12 @@
       <input type="checkbox" id="gpsChk" checked style="width:auto" />
     </div>
 
-    <p class="small" style="margin-top:14px">💡 Tip for the demo: no API key needed — pick a scenario above (Fire, Traffic, etc.) and press <b>Scan now</b>. With a Groq/Claude API key set, it analyses the real camera image instead.</p>
+    <p class="small" style="margin-top:14px"><i data-lucide="lightbulb"></i> Tip for the demo: no API key needed — pick a scenario above (Fire, Traffic, etc.) and press <b>Scan now</b>. With a Groq/Claude API key set, it analyses the real camera image instead.</p>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>window.addEventListener('DOMContentLoaded', () => window.lucide && lucide.createIcons());</script>
   <script type="module" src="/js/drone.js"></script>
 </body>
 </html>

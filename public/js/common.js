@@ -20,7 +20,22 @@ export async function loadConfig() {
 }
 
 export function incidentMeta(type) {
-  return (CONFIG.incidentTypes && CONFIG.incidentTypes[type]) || { label: type, icon: '❓', color: '#888' };
+  return (CONFIG.incidentTypes && CONFIG.incidentTypes[type]) || { label: type, icon: '❓', lucide: 'circle-help', color: '#888' };
+}
+
+// ---- Lucide premium icons ----
+// icon('name') → inline placeholder that lucide.createIcons() turns into an SVG.
+export function icon(name, cls = '') {
+  return `<i data-lucide="${name}"${cls ? ` class="${cls}"` : ''}></i>`;
+}
+// A coloured incident icon.
+export function incidentIcon(type) {
+  const m = incidentMeta(type);
+  return `<span style="color:${m.color};display:inline-flex">${icon(m.lucide || 'triangle-alert')}</span>`;
+}
+// Render all pending <i data-lucide> placeholders into SVGs (call after HTML updates).
+export function refreshIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
 }
 
 export async function api(path, opts = {}) {

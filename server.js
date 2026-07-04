@@ -528,6 +528,17 @@ app.post('/api/admin/reset', (_req, res) => {
   res.json({ ok: true });
 });
 
+// ---- clear resolved dispatches (tidy up the pile) -----------------------
+
+app.post('/api/dispatches/clear-resolved', (_req, res) => {
+  const before = db.dispatches().length;
+  db.state.dispatches = db.dispatches().filter((d) => d.status === 'active');
+  db.save();
+  toPolice('refresh', {});
+  pushStats();
+  res.json({ ok: true, cleared: before - db.dispatches().length });
+});
+
 // ---- resolve coordinates from a shared map/location link ----------------
 
 const MAP_COORD_PATTERNS = [
@@ -701,12 +712,13 @@ io.on('connection', (socket) => {
   });
 
   // Live GPS position from a drone → update the fleet map in real time.
-  socket.on('drone:location', ({ droneId, lat, lng } = {}) => {
+  socket.on('drone:location', ({ droneId, lat, lng, battery } = {}) => {
     if (typeof lat !== 'number' || typeof lng !== 'number') return;
     const drone = db.find('drones', droneId);
     if (!drone) return;
     drone.lat = lat;
     drone.lng = lng;
+    if (typeof battery === 'number' && battery >= 0 && battery <= 100) drone.battery = Math.round(battery);
     drone.connected = true;
     drone.lastSeen = new Date().toISOString();
     db.save();

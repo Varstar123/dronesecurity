@@ -1,4 +1,4 @@
-import { api, esc, loadConfig, CONFIG, incidentMeta } from '/js/common.js';
+import { api, esc, loadConfig, CONFIG, incidentMeta, icon, incidentIcon, refreshIcons } from '/js/common.js';
 
 const socket = io();
 const $ = (id) => document.getElementById(id);
@@ -14,6 +14,7 @@ const st = {
   dispatch: null, // { dispatchId, address, droneId }
   gpsWatch: null,
   lastLocSent: 0, // throttle for live location updates
+  battery: null, // phone battery %, from the Battery Status API
   busy: false,
   awaitingReview: false // an alert was raised and is waiting for police review
 };
@@ -25,9 +26,9 @@ async function init() {
   badge.textContent = `AI: ${CONFIG.aiLabel || 'Simulation'}`;
   badge.className = 'badge ' + (CONFIG.aiMode === 'mock' ? 'mock' : 'live');
 
-  // scenario select (mock AI only)
+  // scenario select (mock AI only) — options can't hold SVG, so text only
   const opts = ['<option value="auto">Auto (random)</option>']
-    .concat(Object.entries(CONFIG.incidentTypes).map(([k, v]) => `<option value="${k}">${v.icon} ${esc(v.label)}</option>`));
+    .concat(Object.entries(CONFIG.incidentTypes).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`));
   $('scenario').innerHTML = opts.join('');
 
   st.drones = await api('/api/drones');
@@ -45,6 +46,35 @@ async function init() {
 
   wireSocket();
   toggleGps(); // start live GPS tracking (checkbox is on by default)
+  initBattery();
+  refreshIcons();
+  // Heartbeat: keep the portal's position, battery and "online" state fresh
+  // even when the phone is stationary (watchPosition may go quiet).
+  setInterval(() => { if (st.gpsWatch != null) sendLocation(true); }, 5000);
+}
+
+// ---------- phone battery (Battery Status API) ----------
+function initBattery() {
+  if (!navigator.getBattery) {
+    $('batteryBadge').style.display = 'none';
+    return;
+  }
+  navigator
+    .getBattery()
+    .then((bat) => {
+      const update = () => {
+        st.battery = Math.round(bat.level * 100);
+        const badge = $('batteryBadge');
+        badge.style.display = '';
+        badge.className = 'badge ' + (st.battery > 20 ? 'live' : 'mock');
+        badge.textContent = `🔋 ${st.battery}%`;
+        sendLocation(true); // push updated battery to the portal
+      };
+      update();
+      bat.addEventListener('levelchange', update);
+      bat.addEventListener('chargingchange', update);
+    })
+    .catch(() => { $('batteryBadge').style.display = 'none'; });
 }
 
 function selectDrone(id) {
@@ -189,9 +219,10 @@ function showVerdict(a) {
   const m = incidentMeta(a.incidentType);
   const v = $('verdict');
   v.classList.remove('hidden');
-  $('vTitle').innerHTML = `${m.icon} ${esc(a.title)} <span class="chip" style="margin-left:6px">${Math.round(a.confidence * 100)}%</span>`;
+  $('vTitle').innerHTML = `${incidentIcon(a.incidentType)} ${esc(a.title)} <span class="chip" style="margin-left:6px">${Math.round(a.confidence * 100)}%</span>`;
   $('vTitle').style.color = m.color;
   $('vInterp').textContent = a.interpretation;
+  refreshIcons();
 }
 
 function updateAuto() {
@@ -205,19 +236,21 @@ function updateAuto() {
 
 // ---------- dispatch mode ----------
 function enterDispatch(cmd) {
-  st.dispatch = { dispatchId: cmd.dispatchId, address: cmd.address, droneId: st.droneId };
+  st.dispatch = { dispatchId: cmd.dispatchId, address: cmd.address, droneId: st.droneId, lat: cmd.lat, lng: cmd.lng };
   st.awaitingReview = false;
   if (st.autoTimer) clearInterval(st.autoTimer), (st.autoTimer = null);
   $('droneSel').disabled = true; // don't let the operator swap drones mid-dispatch
   const m = incidentMeta(cmd.incidentType);
   $('dispatchBanner').classList.add('show');
-  $('dispatchInfo').innerHTML = `${m.icon} <b>${esc(m.label)}</b> at <b>${esc(cmd.address || 'target location')}</b>. ${esc(cmd.description || '')} — surrounding &amp; streaming live to police.`;
-  setStatus('disp', `🚨 DISPATCHED — streaming live to police`);
+  $('dispatchInfo').innerHTML = `${incidentIcon(cmd.incidentType)} <b>${esc(m.label)}</b> at <b>${esc(cmd.address || 'target location')}</b>. ${esc(cmd.description || '')} — proceed & stream live to police.`;
+  setStatus('disp', 'DISPATCHED — streaming live to police');
   $('scanBtn').disabled = true;
+  updateDispatchTracker();
+  refreshIcons();
 
   if (!st.stream) {
     // camera not started — prompt to start so streaming can begin
-    setStatus('disp', '🚨 DISPATCHED — press "Start camera" to stream live footage');
+    setStatus('disp', 'DISPATCHED — press "Start camera" to stream live footage');
   }
   startStreaming();
 }
@@ -245,6 +278,7 @@ function exitDispatch(message) {
   st.dispatch = null;
   st.awaitingReview = false; // a resume also clears an "awaiting review" alert
   $('dispatchBanner').classList.remove('show');
+  $('dispatchTracker').style.display = 'none';
   $('droneSel').disabled = false;
   const d = st.drones.find((x) => x.id === st.droneId);
   setStatus('mon', message || `Resumed monitoring · ${d ? d.sector : ''}`);
@@ -280,13 +314,46 @@ function useSeedCoords() {
   if (d) st.coords = { lat: d.lat, lng: d.lng };
 }
 
-// Push the drone's current position to the police map (throttled), even when
-// it isn't scanning — this is what makes the map track the drone live.
-function sendLocation() {
+// Push the drone's current position + battery to the police map (throttled),
+// even when it isn't scanning — this is what makes the map track it live.
+function sendLocation(force) {
   const now = Date.now();
-  if (now - st.lastLocSent < 2500) return;
+  if (!force && now - st.lastLocSent < 2500) return;
   st.lastLocSent = now;
-  socket.emit('drone:location', { droneId: st.droneId, lat: st.coords.lat, lng: st.coords.lng });
+  const msg = { droneId: st.droneId, lat: st.coords.lat, lng: st.coords.lng };
+  if (st.battery != null) msg.battery = st.battery;
+  socket.emit('drone:location', msg);
+  if (st.dispatch) updateDispatchTracker();
+}
+
+// ---------- distance + compass direction to the dispatch target ----------
+function haversineKm(a, b) {
+  const R = 6371, toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat), dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat));
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+function bearingDeg(from, to) {
+  const toRad = (x) => (x * Math.PI) / 180, toDeg = (x) => (x * 180) / Math.PI;
+  const dLng = toRad(to.lng - from.lng);
+  const y = Math.sin(dLng) * Math.cos(toRad(to.lat));
+  const x = Math.cos(toRad(from.lat)) * Math.sin(toRad(to.lat)) - Math.sin(toRad(from.lat)) * Math.cos(toRad(to.lat)) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+const COMPASS = ['North', 'North-East', 'East', 'South-East', 'South', 'South-West', 'West', 'North-West'];
+function updateDispatchTracker() {
+  if (!st.dispatch || typeof st.dispatch.lat !== 'number') return;
+  const target = { lat: st.dispatch.lat, lng: st.dispatch.lng };
+  const km = haversineKm(st.coords, target);
+  const brng = bearingDeg(st.coords, target);
+  const distTxt = km < 1 ? `${Math.round(km * 1000)} m away` : `${km.toFixed(2)} km away`;
+  $('dispatchTracker').style.display = 'flex';
+  $('trackerDist').textContent = distTxt;
+  $('trackerDir').textContent =
+    km * 1000 <= 20 ? 'You have arrived at the target.' : `Head ${COMPASS[Math.round(brng / 45) % 8]} (${Math.round(brng)}°)`;
+  // The navigation icon points "up" (north); rotate it toward the target bearing.
+  const arrow = $('trackerArrow').querySelector('svg') || $('trackerArrow');
+  arrow.style.transform = `rotate(${brng}deg)`;
 }
 
 function toggleGps() {
