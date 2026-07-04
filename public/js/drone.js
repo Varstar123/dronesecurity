@@ -175,7 +175,17 @@ function captureFrame() {
   const h = Math.round((v.videoHeight / v.videoWidth) * w) || 480;
   const c = $('canvas');
   c.width = w; c.height = h;
-  c.getContext('2d').drawImage(v, 0, 0, w, h);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(v, 0, 0, w, h);
+  // Average brightness (for skipping near-black frames on auto-monitor).
+  try {
+    const d = ctx.getImageData(0, 0, w, h).data;
+    let sum = 0, n = 0;
+    for (let i = 0; i < d.length; i += 64) { sum += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; }
+    st.lastBrightness = sum / n;
+  } catch {
+    st.lastBrightness = 255; // getImageData blocked — assume a real frame
+  }
   return c.toDataURL('image/jpeg', 0.6);
 }
 
@@ -184,6 +194,13 @@ async function scan() {
   if (!st.stream || st.busy || st.dispatch || st.awaitingReview) return;
   const image = captureFrame();
   if (!image) return;
+  // On real monitoring (Auto scenario), skip near-black frames — a covered/dark
+  // camera shouldn't trigger analysis (and never a false alert).
+  if ($('scenario').value === 'auto' && st.lastBrightness != null && st.lastBrightness < 10) {
+    const d = st.drones.find((x) => x.id === st.droneId);
+    setStatus('mon', `Camera dark — skipping · ${d ? d.sector : ''}`);
+    return;
+  }
   st.busy = true;
   $('scanBtn').disabled = true;
   try {
