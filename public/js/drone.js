@@ -31,8 +31,9 @@ async function init() {
   $('scenario').innerHTML = opts.join('');
 
   st.drones = await api('/api/drones');
-  $('droneSel').innerHTML = st.drones.map((d) => `<option value="${d.id}">${esc(d.name)} — ${esc(d.sector)}</option>`).join('');
-  selectDrone(st.drones[0].id);
+  st.droneId = randomFreeDroneId(); // default to a drone no other device is using
+  populateDroneSelect();
+  selectDrone(st.droneId);
 
   $('droneSel').onchange = () => selectDrone($('droneSel').value);
   $('startCam').onclick = startCamera;
@@ -52,10 +53,41 @@ function selectDrone(id) {
   if (d) st.coords = { lat: d.lat, lng: d.lng }; // sector baseline; live GPS overrides
   socket.emit('drone:hello', { droneId: id });
   setStatus('mon', d ? `Monitoring · ${d.sector}` : 'Monitoring');
+  populateDroneSelect();
+}
+
+// Build the drone dropdown, disabling drones already used by another device.
+function populateDroneSelect() {
+  const sel = $('droneSel');
+  sel.innerHTML = st.drones
+    .map((d) => {
+      const taken = d.connected && d.id !== st.droneId;
+      return `<option value="${d.id}" ${taken ? 'disabled' : ''}>${esc(d.name)} — ${esc(d.sector)}${taken ? ' · in use' : ''}</option>`;
+    })
+    .join('');
+  if (st.droneId) sel.value = st.droneId;
+}
+
+function randomFreeDroneId() {
+  const free = st.drones.filter((d) => !d.connected);
+  const pool = free.length ? free : st.drones;
+  return pool[Math.floor(Math.random() * pool.length)].id;
 }
 
 function wireSocket() {
   socket.on('connect', () => { if (st.droneId) socket.emit('drone:hello', { droneId: st.droneId }); });
+  // Another device took/freed a drone → refresh the dropdown's disabled state.
+  socket.on('fleet:changed', async () => {
+    try { st.drones = await api('/api/drones'); populateDroneSelect(); } catch (e) {}
+  });
+  // The drone we picked is already in use → switch to an available one.
+  socket.on('drone:taken', ({ available } = {}) => {
+    const list = available || [];
+    if (!list.length) { alert('All drones are currently in use by other devices.'); return; }
+    const pick = list[Math.floor(Math.random() * list.length)];
+    alert('That drone is already in use by another device — switching you to an available drone.');
+    selectDrone(pick);
+  });
   socket.on('drone:command', (cmd) => {
     if (cmd.type === 'dispatch') enterDispatch(cmd);
     else if (cmd.type === 'resume') exitDispatch(cmd.message);

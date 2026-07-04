@@ -189,6 +189,34 @@ function parseCoordPair(str) {
   return { lat, lng };
 }
 
+// Pull coordinates out of a map/location URL (Google Maps, OSM, Apple, etc.).
+const MAP_COORD_PATTERNS = [
+  /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&]q=loc:(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&](?:ll|sll|destination|center)=(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&]mlat=(-?\d+\.\d+)&mlon=(-?\d+\.\d+)/,
+  /#map=\d+\/(-?\d+\.\d+)\/(-?\d+\.\d+)/,
+  /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+  /[/=](-?\d+\.\d+),(-?\d+\.\d+)/
+];
+function coordsFromUrl(s) {
+  for (const re of MAP_COORD_PATTERNS) {
+    const m = String(s).match(re);
+    if (m) {
+      const lat = parseFloat(m[1]);
+      const lng = parseFloat(m[2]);
+      if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng };
+    }
+  }
+  return null;
+}
+// A link → URL patterns only; otherwise plain coordinates.
+function extractCoords(str) {
+  const s = String(str).trim();
+  return /^https?:\/\//i.test(s) ? coordsFromUrl(s) : parseCoordPair(s);
+}
+
 const DISPATCH_PRESETS = [
   { icon: '💍', label: 'Jewellery robbery', type: 'theft_robbery', desc: 'Armed robbery reported at a jewellery shop.' },
   { icon: '🏦', label: 'Bank robbery', type: 'theft_robbery', desc: 'Robbery in progress at a bank.' },
@@ -230,17 +258,39 @@ function setupDispatchForm() {
       })
   );
 
-  // Paste a full coordinate string (e.g. "11.2545° N 75.7800° E").
+  // Paste coordinates ("11.2545° N 75.7800° E") OR a shared map/location link.
   const coordsInput = document.getElementById('d_coords');
-  if (coordsInput)
-    coordsInput.oninput = () => {
-      const p = parseCoordPair(coordsInput.value);
-      if (!p) return;
-      document.getElementById('d_lat').value = p.lat.toFixed(5);
-      document.getElementById('d_lng').value = p.lng.toFixed(5);
-      state.pendingTarget = { lat: p.lat, lng: p.lng };
-      renderMap();
-    };
+  const coordStatus = document.getElementById('coordStatus');
+  const setCoordStatus = (msg, color) => {
+    if (coordStatus) { coordStatus.textContent = msg; coordStatus.style.color = color || 'var(--muted)'; }
+  };
+  const fillCoords = (p) => {
+    document.getElementById('d_lat').value = p.lat.toFixed(5);
+    document.getElementById('d_lng').value = p.lng.toFixed(5);
+    state.pendingTarget = { lat: p.lat, lng: p.lng };
+    renderMap();
+    setCoordStatus(`📍 ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`, '#4be3d6');
+  };
+  const resolveLink = async () => {
+    const v = coordsInput.value.trim();
+    if (!v) return setCoordStatus('');
+    const local = extractCoords(v);
+    if (local) return fillCoords(local);
+    if (!/^https?:\/\//i.test(v)) return; // still typing plain coordinates
+    setCoordStatus('resolving link…');
+    try {
+      const r = await api('/api/resolve-location', { method: 'POST', body: { url: v } });
+      if (r && Number.isFinite(r.lat)) fillCoords(r);
+      else setCoordStatus("couldn't read coordinates from that link", '#ff6b6b');
+    } catch (e) {
+      setCoordStatus("couldn't open that link: " + e.message, '#ff6b6b');
+    }
+  };
+  if (coordsInput) {
+    coordsInput.oninput = () => { const p = extractCoords(coordsInput.value); if (p) fillCoords(p); };
+    coordsInput.addEventListener('paste', () => setTimeout(resolveLink, 60));
+    coordsInput.addEventListener('change', resolveLink); // blur / Enter
+  }
 
   document.getElementById('d_send').onclick = async () => {
     const lat = parseCoord(document.getElementById('d_lat').value);

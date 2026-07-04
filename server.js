@@ -528,6 +528,74 @@ app.post('/api/admin/reset', (_req, res) => {
   res.json({ ok: true });
 });
 
+// ---- resolve coordinates from a shared map/location link ----------------
+
+const MAP_COORD_PATTERNS = [
+  /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&]q=loc:(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&](?:ll|sll|destination|center)=(-?\d+\.\d+),(-?\d+\.\d+)/,
+  /[?&]mlat=(-?\d+\.\d+)&mlon=(-?\d+\.\d+)/,
+  /#map=\d+\/(-?\d+\.\d+)\/(-?\d+\.\d+)/,
+  /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+  /[/=](-?\d+\.\d+),(-?\d+\.\d+)/
+];
+function coordsFromString(s) {
+  for (const re of MAP_COORD_PATTERNS) {
+    const m = String(s).match(re);
+    if (m) {
+      const lat = parseFloat(m[1]);
+      const lng = parseFloat(m[2]);
+      if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180)
+        return { lat, lng };
+    }
+  }
+  return null;
+}
+
+const MAP_HOSTS = ['google.com', 'goo.gl', 'g.co', 'openstreetmap.org', 'osm.org', 'apple.com', 'waze.com'];
+function isMapHost(url) {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return MAP_HOSTS.some((d) => h === d || h.endsWith('.' + d));
+  } catch {
+    return false;
+  }
+}
+
+async function resolveMapUrl(url) {
+  let c = coordsFromString(url);
+  if (c) return c;
+  if (!isMapHost(url)) return null; // don't fetch arbitrary hosts (SSRF guard)
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const resp = await fetch(url, {
+      redirect: 'follow',
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SmartDrone/1.0)' }
+    });
+    c = coordsFromString(resp.url); // final URL after following short-link redirects
+    if (c) return c;
+    const html = await resp.text();
+    return coordsFromString(html);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+app.post('/api/resolve-location', async (req, res) => {
+  const url = ((req.body && req.body.url) || '').trim();
+  if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'not a link' });
+  try {
+    const c = await resolveMapUrl(url);
+    if (!c) return res.status(422).json({ error: 'no coordinates found in that link' });
+    res.json(c);
+  } catch (err) {
+    res.status(502).json({ error: 'could not open the link: ' + err.message });
+  }
+});
+
 // ---- police: clear captured images (authorization-key protected) --------
 
 app.post('/api/admin/clear-images', async (req, res) => {
@@ -559,6 +627,22 @@ app.post('/api/admin/clear-images', async (req, res) => {
 
 // ---- sockets -------------------------------------------------------------
 
+// A drone is "taken" if a socket other than this one is in its room.
+function droneTakenByOther(droneId, socketId) {
+  const room = io.sockets.adapter.rooms.get(`drone:${droneId}`);
+  return !!(room && [...room].some((sid) => sid !== socketId));
+}
+// Drone ids that no device is currently controlling.
+function availableDroneIds() {
+  return db
+    .drones()
+    .filter((d) => {
+      const room = io.sockets.adapter.rooms.get(`drone:${d.id}`);
+      return !(room && room.size > 0);
+    })
+    .map((d) => d.id);
+}
+
 io.on('connection', (socket) => {
   socket.on('police:join', () => {
     socket.join('police');
@@ -568,6 +652,11 @@ io.on('connection', (socket) => {
   socket.on('drone:hello', ({ droneId } = {}) => {
     const drone = db.find('drones', droneId);
     if (!drone) return;
+    // One device per drone: reject if another phone already controls this one.
+    if (droneTakenByOther(droneId, socket.id)) {
+      socket.emit('drone:taken', { droneId, available: availableDroneIds() });
+      return;
+    }
     // If this socket was previously controlling a different drone, leave that
     // room and mark the old drone offline if nobody else controls it.
     const prev = socket.data.droneId;
@@ -584,11 +673,13 @@ io.on('connection', (socket) => {
     }
     socket.data.droneId = droneId;
     socket.join(`drone:${droneId}`);
+    socket.join('drones'); // receive fleet-change notifications
     drone.connected = true;
     drone.lastSeen = new Date().toISOString();
     db.save();
     toPolice('drone:status', drone);
     pushStats();
+    io.to('drones').emit('fleet:changed'); // refresh other drone apps' dropdowns
     // If this drone already has an active dispatch, re-send the command.
     if (drone.activeDispatchId) {
       const dispatch = db.find('dispatches', drone.activeDispatchId);
@@ -640,6 +731,7 @@ io.on('connection', (socket) => {
       db.save();
       toPolice('drone:status', drone);
       pushStats();
+      io.to('drones').emit('fleet:changed'); // this drone is free again
     }
   });
 });
