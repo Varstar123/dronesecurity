@@ -278,14 +278,14 @@ function setupDispatchForm() {
   const coordsInput = document.getElementById('d_coords');
   const coordStatus = document.getElementById('coordStatus');
   const setCoordStatus = (msg, color) => {
-    if (coordStatus) { coordStatus.textContent = msg; coordStatus.style.color = color || 'var(--muted)'; }
+    if (coordStatus) { coordStatus.innerHTML = msg; coordStatus.style.color = color || 'var(--muted)'; refreshIcons(); }
   };
   const fillCoords = (p) => {
     document.getElementById('d_lat').value = p.lat.toFixed(5);
     document.getElementById('d_lng').value = p.lng.toFixed(5);
     state.pendingTarget = { lat: p.lat, lng: p.lng };
     renderMap();
-    setCoordStatus(`📍 ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`, '#4be3d6');
+    setCoordStatus(`${icon('map-pin')} ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`, '#4be3d6');
   };
   const resolveLink = async () => {
     const v = coordsInput.value.trim();

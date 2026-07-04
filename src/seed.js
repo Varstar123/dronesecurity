@@ -4,15 +4,12 @@ import { db } from './db.js';
 
 const CITY_CENTER = { lat: 11.2588, lng: 75.7804 };
 
+// 4 drones — one per group phone, spread across the city.
 const FLEET = [
-  { name: 'Drone 1', sector: 'Sector 1 - Mananchira',   lat: 11.2510, lng: 75.7750 },
-  { name: 'Drone 2', sector: 'Sector 2 - SM Street',    lat: 11.2470, lng: 75.7810 },
-  { name: 'Drone 3', sector: 'Sector 3 - Beach Road',   lat: 11.2560, lng: 75.7690 },
-  { name: 'Drone 4', sector: 'Sector 4 - Palayam',      lat: 11.2620, lng: 75.7820 },
-  { name: 'Drone 5', sector: 'Sector 5 - Medical Coll', lat: 11.2790, lng: 75.8010 },
-  { name: 'Drone 6', sector: 'Sector 6 - Nadakkavu',    lat: 11.2720, lng: 75.7770 },
-  { name: 'Drone 7', sector: 'Sector 7 - Kallai',       lat: 11.2380, lng: 75.7890 },
-  { name: 'Drone 8', sector: 'Sector 8 - Vellayil',     lat: 11.2660, lng: 75.7640 }
+  { name: 'Drone 1', sector: 'Sector 1 - Mananchira', lat: 11.251, lng: 75.775 },
+  { name: 'Drone 2', sector: 'Sector 2 - SM Street',  lat: 11.247, lng: 75.781 },
+  { name: 'Drone 3', sector: 'Sector 3 - Nadakkavu',  lat: 11.272, lng: 75.777 },
+  { name: 'Drone 4', sector: 'Sector 4 - Kallai',     lat: 11.238, lng: 75.789 }
 ];
 
 export function seedFleet() {
