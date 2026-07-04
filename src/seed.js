@@ -56,6 +56,10 @@ export function seedFleet() {
 
 // Named places police can dispatch drones to by name (no map/coords needed).
 // Approximate coordinates around Kozhikode — good enough for the demo.
+// Home (base) position of each drone, so a simulated drone can return after a
+// dispatch. Keyed by drone id (drone-1 … drone-N).
+export const HOME_POSITIONS = Object.fromEntries(FLEET.map((f, i) => [`drone-${i + 1}`, { lat: f.lat, lng: f.lng }]));
+
 export const LANDMARKS = [
   { name: 'Jewellery Market, Big Bazaar', lat: 11.2486, lng: 75.7793 },
   { name: 'SM Street (Mittai Theruvu)', lat: 11.2470, lng: 75.781 },
