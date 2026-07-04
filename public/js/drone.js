@@ -25,7 +25,9 @@ const st = {
   stream: null,
   autoTimer: null,
   streamTimer: null,
+  streamRunning: false, // dispatch stream loop active
   liveTimer: null, // on-demand live view requested by police
+  liveRunning: false, // on-demand live loop active
   dispatch: null, // { dispatchId, address, droneId }
   gpsWatch: null,
   lastLocSent: 0, // throttle for live location updates
@@ -167,8 +169,10 @@ async function startCamera() {
 
 function stopCamera() {
   if (st.autoTimer) clearInterval(st.autoTimer), (st.autoTimer = null);
-  if (st.streamTimer) clearInterval(st.streamTimer), (st.streamTimer = null);
-  if (st.liveTimer) clearInterval(st.liveTimer), (st.liveTimer = null);
+  st.streamRunning = false;
+  if (st.streamTimer) clearTimeout(st.streamTimer), (st.streamTimer = null);
+  st.liveRunning = false;
+  if (st.liveTimer) clearTimeout(st.liveTimer), (st.liveTimer = null);
   $('liveChip').classList.remove('show');
   const wasDispatch = !!st.dispatch;
   st.dispatch = null;
@@ -186,7 +190,9 @@ function stopCamera() {
   setStatus('mon', wasDispatch ? 'Camera stopped — dispatch streaming halted' : 'Camera stopped');
 }
 
-function captureFrame() {
+// measureBrightness is only needed by the auto-scan path (to skip near-black frames);
+// the dispatch/live streaming loops throw it away, so they skip the costly getImageData readback.
+function captureFrame(measureBrightness = false) {
   const v = $('video');
   if (!v.videoWidth) return null;
   const w = 640;
@@ -196,7 +202,7 @@ function captureFrame() {
   const ctx = c.getContext('2d');
   ctx.drawImage(v, 0, 0, w, h);
   // Average brightness (for skipping near-black frames on auto-monitor).
-  try {
+  if (measureBrightness) try {
     const d = ctx.getImageData(0, 0, w, h).data;
     let sum = 0, n = 0;
     for (let i = 0; i < d.length; i += 64) { sum += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; }
@@ -210,7 +216,7 @@ function captureFrame() {
 // ---------- monitoring scan ----------
 async function scan() {
   if (!st.stream || st.busy || st.dispatch || st.awaitingReview) return;
-  const image = captureFrame();
+  const image = captureFrame(true); // auto-scan needs the brightness reading
   if (!image) return;
   // On real monitoring (Auto scenario), skip near-black frames — a covered/dark
   // camera shouldn't trigger analysis (and never a false alert).
@@ -290,26 +296,42 @@ function enterDispatch(cmd) {
   startStreaming();
 }
 
+// Self-scheduling loop (not setInterval): the next frame is only queued AFTER the
+// previous send completes, so slow links can't pile up in-flight POSTs and lag out.
 function startStreaming() {
-  if (st.streamTimer) clearInterval(st.streamTimer);
-  st.streamTimer = setInterval(async () => {
-    if (!st.dispatch || !st.stream) return;
-    const image = captureFrame();
-    if (!image) return;
-    try {
-      await api(`/api/dispatches/${st.dispatch.dispatchId}/frame`, {
-        method: 'POST',
-        body: { droneId: st.dispatch.droneId, image }
-      });
-    } catch (e) {
-      // dispatch may have been resolved
-      if (String(e.message).includes('not active') || String(e.message).includes('unknown')) exitDispatch();
+  if (st.streamRunning) return; // already looping; it reads st.dispatch each tick
+  st.streamRunning = true;
+  const TARGET_MS = 400; // ~2.5 fps ceiling; real rate is gated by send latency
+  const tick = async () => {
+    if (!st.streamRunning) return;
+    let wait = TARGET_MS;
+    if (st.dispatch && st.stream) {
+      const image = captureFrame();
+      if (image) {
+        const t0 = performance.now();
+        try {
+          await api(`/api/dispatches/${st.dispatch.dispatchId}/frame`, {
+            method: 'POST',
+            body: { droneId: st.dispatch.droneId, image }
+          });
+        } catch (e) {
+          if (String(e.message).includes('not active') || String(e.message).includes('unknown')) {
+            st.streamRunning = false;
+            exitDispatch();
+            return;
+          }
+        }
+        wait = Math.max(0, TARGET_MS - (performance.now() - t0));
+      }
     }
-  }, 2000);
+    if (st.streamRunning) st.streamTimer = setTimeout(tick, wait);
+  };
+  tick();
 }
 
 function exitDispatch(message) {
-  if (st.streamTimer) clearInterval(st.streamTimer), (st.streamTimer = null);
+  st.streamRunning = false;
+  if (st.streamTimer) clearTimeout(st.streamTimer), (st.streamTimer = null);
   st.dispatch = null;
   st.awaitingReview = false; // a resume also clears an "awaiting review" alert
   $('dispatchBanner').classList.remove('show');
@@ -324,22 +346,33 @@ function exitDispatch(message) {
 // ---------- on-demand live view (police requested) ----------
 function startLive() {
   $('liveChip').classList.add('show');
-  if (st.liveTimer) return;
+  if (st.liveRunning) return;
+  st.liveRunning = true;
   const liveDroneId = st.droneId; // keep streaming this drone even if selection changes
-  st.liveTimer = setInterval(async () => {
-    if (!st.stream) return; // wait until the camera is on
-    const image = captureFrame();
-    if (!image) return;
-    try {
-      await api(`/api/drones/${liveDroneId}/live/frame`, { method: 'POST', body: { image } });
-    } catch (e) {
-      /* police may have closed the view */
+  const TARGET_MS = 300; // ~3 fps ceiling for the on-demand modal; latency-gated + backpressured
+  const tick = async () => {
+    if (!st.liveRunning) return;
+    let wait = TARGET_MS;
+    if (st.stream) {
+      const image = captureFrame();
+      if (image) {
+        const t0 = performance.now();
+        try {
+          await api(`/api/drones/${liveDroneId}/live/frame`, { method: 'POST', body: { image } });
+        } catch (e) {
+          /* police may have closed the view */
+        }
+        wait = Math.max(0, TARGET_MS - (performance.now() - t0));
+      }
     }
-  }, 1000);
+    if (st.liveRunning) st.liveTimer = setTimeout(tick, wait);
+  };
+  tick();
 }
 
 function stopLive() {
-  if (st.liveTimer) clearInterval(st.liveTimer), (st.liveTimer = null);
+  st.liveRunning = false;
+  if (st.liveTimer) clearTimeout(st.liveTimer), (st.liveTimer = null);
   $('liveChip').classList.remove('show');
 }
 
