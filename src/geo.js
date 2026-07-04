@@ -1,0 +1,29 @@
+// Small geo helpers. Coordinates are plain {lat, lng} in degrees.
+
+const R = 6371; // Earth radius in km
+
+export function haversineKm(a, b) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+// Return drones sorted by distance to `target`, annotated with distanceKm.
+// If some drones fall within `radiusKm` we return those; otherwise we return
+// the `minCount` nearest so a dispatch always has something to send.
+export function findNearbyDrones(target, drones, { radiusKm = 3, minCount = 3 } = {}) {
+  const ranked = drones
+    .filter((d) => d.status !== 'offline' && d.status !== 'dispatched' && typeof d.lat === 'number')
+    .map((d) => ({ ...d, distanceKm: haversineKm(target, { lat: d.lat, lng: d.lng }) }))
+    .sort((x, y) => x.distanceKm - y.distanceKm);
+
+  const within = ranked.filter((d) => d.distanceKm <= radiusKm);
+  if (within.length >= 1) return within.slice(0, Math.max(minCount, within.length > 4 ? 4 : within.length));
+  return ranked.slice(0, minCount);
+}
