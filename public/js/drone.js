@@ -364,11 +364,13 @@ function toggleGps() {
       $('gpsChk').checked = false;
       return;
     }
-    status.textContent = '📍 acquiring GPS…';
+    status.innerHTML = `${icon('locate-fixed')} acquiring GPS…`;
+    refreshIcons();
     st.gpsWatch = navigator.geolocation.watchPosition(
       (pos) => {
         st.coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        status.textContent = `📍 live: ${st.coords.lat.toFixed(5)}, ${st.coords.lng.toFixed(5)}`;
+        status.innerHTML = `${icon('locate-fixed')} live: ${st.coords.lat.toFixed(5)}, ${st.coords.lng.toFixed(5)}`;
+        refreshIcons();
         sendLocation();
       },
       (err) => {
