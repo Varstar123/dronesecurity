@@ -13,42 +13,47 @@ const FLEET = [
 ];
 
 export function seedFleet() {
-  if (db.drones().length > 0) {
-    // Fleet already exists — just make sure nobody is stuck in a stale state.
-    for (const d of db.drones()) {
+  const wanted = FLEET.map((f, i) => ({ id: `drone-${i + 1}`, ...f }));
+  const wantedIds = new Set(wanted.map((w) => w.id));
+  const existing = db.drones();
+
+  // Reconcile the fleet to match FLEET: keep known drones (resetting transient
+  // state), add any missing, and drop any extras (e.g. after shrinking 8 → 4).
+  const kept = existing.filter((d) => wantedIds.has(d.id));
+  for (const w of wanted) {
+    let d = kept.find((x) => x.id === w.id);
+    if (!d) {
+      kept.push({
+        id: w.id,
+        name: w.name,
+        sector: w.sector,
+        lat: w.lat,
+        lng: w.lng,
+        status: 'monitoring', // monitoring | alerting | dispatched | offline
+        battery: 70 + Math.floor(Math.random() * 30),
+        connected: false, // true when a phone camera is live-controlling this drone
+        liveView: false, // true when police have an on-demand live view open
+        activeDispatchId: null,
+        lastSeen: null
+      });
+    } else {
+      d.name = w.name;
+      d.sector = w.sector;
       d.connected = false;
       d.liveView = false;
       if (d.status === 'dispatched' || d.status === 'alerting') d.status = 'monitoring';
       d.activeDispatchId = null;
     }
-    // Close out any dispatch left "active" from before the restart so drones
-    // and dispatches don't disagree.
-    for (const disp of db.dispatches()) {
-      if (disp.status === 'active') {
-        disp.status = 'resolved';
-        disp.resolvedAt = new Date().toISOString();
-      }
-    }
-    db.save();
-    return;
   }
-
-  const drones = FLEET.map((f, i) => ({
-    id: `drone-${i + 1}`,
-    name: f.name,
-    sector: f.sector,
-    lat: f.lat,
-    lng: f.lng,
-    status: 'monitoring', // monitoring | alerting | dispatched | offline
-    battery: 70 + Math.floor(Math.random() * 30),
-    connected: false, // true when a phone camera is live-controlling this drone
-    liveView: false, // true when police have an on-demand live view open
-    activeDispatchId: null,
-    lastSeen: null
-  }));
-
-  db.setDrones(drones);
-  console.log(`[seed] created fleet of ${drones.length} drones around Kozhikode`);
+  // Close out any dispatch left "active" from before the restart.
+  for (const disp of db.dispatches()) {
+    if (disp.status === 'active') {
+      disp.status = 'resolved';
+      disp.resolvedAt = new Date().toISOString();
+    }
+  }
+  db.setDrones(kept);
+  console.log(`[seed] fleet reconciled to ${kept.length} drones around Kozhikode`);
 }
 
 // Named places police can dispatch drones to by name (no map/coords needed).

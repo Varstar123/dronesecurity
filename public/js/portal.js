@@ -107,27 +107,29 @@ function alertCard(a, reviewed) {
          <button class="btn primary sm" data-dis="${a.id}">${icon('check')} Situation OK — Resume</button>
        </div>`;
 
-  const thumb = a.imageUrl
-    ? `<img class="ac-thumb" src="${a.imageUrl}" alt="captured frame" />`
-    : `<div class="ac-thumb ac-thumb-empty" style="color:${m.color}">${incidentIcon(a.incidentType)}</div>`;
+  // Leading thumbnail shown on the collapsed card (image if captured, else the incident icon).
+  const thumbSm = a.imageUrl
+    ? `<div class="ac-thumb-sm"><img src="${a.imageUrl}" alt="" loading="lazy" /></div>`
+    : `<div class="ac-thumb-sm ac-thumb-icon" style="color:${m.color}">${icon(m.lucide)}</div>`;
+  const fullImg = a.imageUrl ? `<img class="ac-thumb" src="${a.imageUrl}" alt="captured frame" />` : '';
 
   return `<div class="alert-card ${reviewed ? 'reviewed' : ''}">
     <div class="ac-head" data-toggle="${a.id}">
-      <span class="ac-ic" style="color:${m.color}">${icon(m.lucide)}</span>
+      ${thumbSm}
       <div class="ac-main">
-        <div class="ac-title">${esc(a.title)} ${sev}</div>
+        <div class="ac-title"><span class="ac-ic" style="color:${m.color}">${icon(m.lucide)}</span> ${esc(a.title)} ${sev}</div>
         <div class="ac-sub">${icon('bot')} ${esc(a.droneName)} · ${icon('map-pin')} ${esc(a.sector)} · ${icon('clock')} ${timeAgo(a.timestamp)}</div>
         <div class="ac-snippet">${esc(a.interpretation)}</div>
       </div>
       <span class="ac-chevron">${icon('chevron-down')}</span>
     </div>
-    ${actions}
     <div class="ac-details">
-      ${thumb}
-      <div class="interp" style="margin-top:10px">“${esc(a.interpretation)}”</div>
+      ${fullImg}
+      <div class="interp" style="margin-top:${a.imageUrl ? '12' : '0'}px">“${esc(a.interpretation)}”</div>
       <div class="meta" style="margin-top:8px">${icon('lightbulb')} Suggested: ${esc(a.recommendedAction)}</div>
       <div class="row" style="margin-top:8px"><span class="meta" style="width:78px">Confidence</span><div class="conf-bar" style="flex:1"><span style="width:${conf}%"></span></div><span class="meta">${conf}%</span></div>
       <div class="meta" style="margin-top:6px">${icon('crosshair')} ${typeof a.lat === 'number' ? a.lat.toFixed(5) + ', ' + a.lng.toFixed(5) : '—'} · ${icon('cpu')} ${sourceLabel}</div>
+      ${actions}
     </div>
   </div>`;
 }

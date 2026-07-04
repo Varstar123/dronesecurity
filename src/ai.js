@@ -398,8 +398,21 @@ export async function analyzeFrame(imageBase64, context = {}) {
     if (AI_MODE === 'groq') return await analyzeGroq(imageBase64, context);
     if (AI_MODE === 'claude' && claude) return await analyzeClaude(imageBase64, context);
   } catch (err) {
-    console.warn(`[ai] ${AI_MODE} analysis failed, falling back to mock:`, err.message);
-    return analyzeMock(imageBase64, context);
+    // A real provider failed on this frame (e.g. a blank/black frame, or a rate
+    // limit). Do NOT invent a random incident — that produced false alerts.
+    // Treat the frame as "all clear" and keep monitoring.
+    console.warn(`[ai] ${AI_MODE} analysis failed, treating frame as normal:`, err.message);
+    return normalize(
+      {
+        incident_type: 'normal',
+        title: 'All clear',
+        severity: 'none',
+        confidence: 0.5,
+        interpretation: 'AI analysis was unavailable for this frame — continuing to monitor.',
+        recommended_action: 'Continue monitoring.'
+      },
+      `${AI_MODE}-unavailable`
+    );
   }
   return analyzeMock(imageBase64, context);
 }
