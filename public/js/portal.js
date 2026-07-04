@@ -55,7 +55,7 @@ function wireSocket() {
   socket.on('alert:new', (a) => { refreshAlerts(); toast(a); beep(); });
   socket.on('alert:updated', () => refreshAlerts());
   socket.on('dispatch:new', (d) => { refreshDispatches(); toast({ incidentType: d.incidentType, title: 'Drones dispatched', interpretation: `${d.assignedDrones.length} drones surrounding ${d.address || 'target'}`, sector: d.address }); });
-  socket.on('dispatch:frame', ({ dispatchId, frame }) => onFrame(dispatchId, frame));
+  socket.on('dispatch:frame', onFrame);
   socket.on('dispatch:updated', () => refreshDispatches());
   socket.on('dispatch:arrived', (a) => {
     toast({ incidentType: 'normal', title: `${a.droneName} reached the location`, sector: 'Dispatch', interpretation: 'Drone in position — live camera available for monitoring.' });
@@ -85,19 +85,28 @@ function scheduleDroneRender() {
     droneRenderTimer = null;
     renderMap();
     renderDroneList();
-    renderDispatches();
+    // Only rebuild the dispatch list if one is active — resolved/idle cards use static
+    // distances, so skipping avoids a full re-render (+ icon scan) on every position ping.
+    if (state.dispatches.some((d) => d.status === 'active')) renderDispatches();
   }, 150);
 }
 async function refreshAlerts() { state.alerts = await api('/api/alerts'); renderAlerts(); renderMap(); }
 async function refreshDispatches() { state.dispatches = await api('/api/dispatches'); renderDispatches(); renderMap(); }
 async function refreshMF() { state.mf = await api('/api/mainforce'); renderMF(); }
 
-function onFrame(dispatchId, frame) {
-  const d = state.dispatches.find((x) => x.id === dispatchId);
-  if (!d) { refreshDispatches(); return; }
-  d.frames.push(frame);
-  if (d.frames.length > 16) d.frames = d.frames.slice(-16);
-  renderDispatches();
+// A frame now arrives inline ({ dispatchId, droneId, image, ... }). In steady state we
+// just swap ONE <img>.src — no list rebuild, no document-wide icon scan (the old jank).
+function onFrame(p) {
+  if (!p || !p.dispatchId || !p.droneId || !p.image) return;
+  const key = p.dispatchId + '__' + p.droneId;
+  state.liveFrames = state.liveFrames || {};
+  state.liveFrames[key] = p.image; // cache the newest frame so full re-renders keep it
+  const sel = 'img[data-feed="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]';
+  const img = document.querySelector(sel);
+  if (img) { img.src = p.image; return; } // steady state — one cheap swap
+  // First frame for this tile (still the "surrounding…" placeholder) → build the card once.
+  const d = state.dispatches.find((x) => x.id === p.dispatchId);
+  if (d) renderDispatches(); else refreshDispatches();
 }
 
 // ---------- stats ----------
@@ -403,15 +412,24 @@ function dispatchCard(d) {
       else if (active && live) status = `${icon('navigation')} en route · ${haversineKm(live, { lat: d.lat, lng: d.lng }).toFixed(2)} km away`;
       else status = `${a.distanceKm} km away`;
       const style = arrived ? ' style="border-color:#16a34a; color:#7cffb0"' : '';
-      const cam = arrived && active ? `<button class="btn sm primary" data-livecam="${a.id}">${icon('video')} Access live camera</button>` : '';
+      // Police can pull the live camera from any online assigned drone — even while it
+      // is still en route to the target — so they can watch the approach, not just after arrival.
+      const online = !!(live && live.connected);
+      const camLabel = arrived ? 'Access live camera' : 'Live camera (en route)';
+      const cam = active && online ? `<button class="btn sm primary" data-livecam="${a.id}">${icon('video')} ${camLabel}</button>` : '';
       return `<span class="chip"${style}>${icon('bot')} ${esc(a.name)} · ${status}</span>${cam}`;
     })
     .join('');
   const tiles = d.assignedDrones
     .map((ad) => {
+      const key = d.id + '__' + ad.id;
+      // Prefer the newest live inline frame (cached by onFrame); fall back to the last
+      // archived thumbnail URL; else the "surrounding…" placeholder.
+      const cached = state.liveFrames && state.liveFrames[key];
       const f = latestByDrone[ad.id];
-      if (f) {
-        return `<div class="frame-tile"><img src="${f.url}" alt="live" /><span class="live">● LIVE</span><span class="lbl">${esc(ad.name)}</span></div>`;
+      const src = cached || (f && f.url);
+      if (src) {
+        return `<div class="frame-tile"><img data-feed="${key}" src="${src}" alt="live" /><span class="live">● LIVE</span><span class="lbl">${esc(ad.name)}</span></div>`;
       }
       return `<div class="frame-tile sim-tile"><div class="scan"></div>${icon('bot')}<div>${esc(ad.name)}</div><div>surrounding…</div></div>`;
     })
@@ -587,6 +605,9 @@ function renderMap() {
     if (!visible) return; // initialise only once the map tab is opened (needs a sized container)
     initMap();
   }
+  // Hidden map: skip the full marker teardown/rebuild + icon scan. setupTabs re-renders
+  // when the Map tab is opened, so nothing goes stale.
+  if (!visible) return;
   lmap.invalidateSize();
   mapMarkers.clearLayers();
 

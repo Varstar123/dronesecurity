@@ -27,11 +27,18 @@ const COLLECTIONS = [
   ['mainForce', 'main_force']
 ];
 
-// Ids we have already synced, per collection. Seeded from loadAll(). We delete
-// ONLY rows that were actually removed from state (syncedIds − currentIds), never
-// a "delete everything not in this list" — that would (a) blow past the URL length
-// limit at scale and (b) wipe rows a truncated load never brought into memory.
-const syncedIds = { drones: new Set(), alerts: new Set(), dispatches: new Set(), mainForce: new Set() };
+// Per-collection map of id -> serialized row we last synced. Seeded from loadAll().
+// Lets us upsert ONLY rows that actually changed (a single GPS ping used to re-upsert
+// EVERY drone/alert/dispatch/mainForce row) and delete ONLY rows removed from state.
+const lastSynced = { drones: new Map(), alerts: new Map(), dispatches: new Map(), mainForce: new Map() };
+
+// Stable serialization: sort TOP-LEVEL keys so column order never causes a false diff.
+// (Do NOT use JSON.stringify's array-replacer — it would recursively strip nested keys.)
+function rowKey(row) {
+  const sorted = {};
+  for (const k of Object.keys(row).sort()) sorted[k] = row[k];
+  return JSON.stringify(sorted);
+}
 
 export async function loadAll() {
   const out = { drones: [], alerts: [], dispatches: [], mainForce: [] };
@@ -39,7 +46,7 @@ export async function loadAll() {
     const { data, error } = await sb.from(table).select('*').limit(10000);
     if (error) throw new Error(`load ${table}: ${error.message}`);
     out[coll] = (data || []).map(fromRow);
-    syncedIds[coll] = new Set(out[coll].map((r) => r.id));
+    lastSynced[coll] = new Map(out[coll].map((r) => [r.id, rowKey(toRow(r))]));
   }
   return out;
 }
@@ -54,16 +61,26 @@ async function deleteIds(table, ids) {
 }
 
 async function syncTable(coll, table, records) {
-  const rows = records.map(toRow);
-  if (rows.length) {
-    const { error } = await sb.from(table).upsert(rows);
-    if (error) throw new Error(`upsert ${table}: ${error.message}`);
+  const seen = new Set();
+  const changed = [];
+  for (const r of records) {
+    seen.add(r.id);
+    const row = toRow(r);
+    const key = rowKey(row);
+    if (lastSynced[coll].get(r.id) !== key) changed.push({ id: r.id, row, key });
   }
-  // Delete ONLY rows that were actually removed from state (syncedIds − currentIds).
-  const currentIds = new Set(records.map((r) => r.id));
-  const removed = [...syncedIds[coll]].filter((id) => !currentIds.has(id));
-  if (removed.length) await deleteIds(table, removed);
-  syncedIds[coll] = currentIds;
+  if (changed.length) {
+    const { error } = await sb.from(table).upsert(changed.map((c) => c.row));
+    if (error) throw new Error(`upsert ${table}: ${error.message}`);
+    // Record as synced ONLY after a successful upsert, so a failure retries next time.
+    for (const c of changed) lastSynced[coll].set(c.id, c.key);
+  }
+  // Delete ONLY rows that were actually removed from state.
+  const removed = [...lastSynced[coll].keys()].filter((id) => !seen.has(id));
+  if (removed.length) {
+    await deleteIds(table, removed);
+    for (const id of removed) lastSynced[coll].delete(id);
+  }
 }
 
 export async function syncAll(state) {
@@ -98,6 +115,11 @@ export async function uploadImage(buffer, name) {
   });
   if (error) throw new Error('upload: ' + error.message);
   return sb.storage.from(BUCKET).getPublicUrl(name).data.publicUrl;
+}
+
+// Delete specific images (by object name) from the Storage bucket. Best-effort.
+export async function deleteImages(names) {
+  if (names && names.length) await sb.storage.from(BUCKET).remove(names);
 }
 
 // Delete every captured image from the Storage bucket. Returns the count removed.

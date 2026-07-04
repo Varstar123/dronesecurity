@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 import express from 'express';
+import compression from 'compression';
 import { Server as SocketServer } from 'socket.io';
 
 import { db, UPLOAD_DIR } from './src/db.js';
@@ -25,6 +26,7 @@ const HTTPS_PORT = Number(process.env.HTTPS_PORT) || PORT + 443; // 3443 by defa
 const MAX_FRAMES_PER_DISPATCH = 16;
 const MAX_UPDATES_PER_DISPATCH = 50; // field updates kept per dispatch
 const MAX_MAINFORCE = 500; // main-force log records kept in memory / DB
+const MAX_ALERTS = 300; // alert records kept (pending always retained; oldest reviewed evicted)
 // Police authorization key required to clear captured images (change via .env).
 const CLEAR_SECRET = process.env.CLEAR_SECRET || 'police2026';
 // A drone counts as "reached the location" within this distance of the target.
@@ -45,9 +47,13 @@ const io = new SocketServer(server, {
 process.on('uncaughtException', (err) => console.error('[uncaughtException]', err && err.stack ? err.stack : err));
 process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', err && err.stack ? err.stack : err));
 
+app.use(compression()); // gzip every response — must precede routes & static
 app.use(express.json({ limit: '15mb' }));
+// App files aren't content-hashed, so rely on ETag/Last-Modified revalidation (304s):
+// efficient AND always fresh after a redeploy — no stale HTML/JS.
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(UPLOAD_DIR));
+// Uploaded images have unique uid filenames → safe to cache hard.
+app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d', immutable: true }));
 
 app.get('/drone', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'drone.html')));
 
@@ -85,8 +91,19 @@ async function saveImage(dataUrl) {
       }
     }
   }
-  fs.writeFileSync(path.join(UPLOAD_DIR, name), buffer);
+  await fs.promises.writeFile(path.join(UPLOAD_DIR, name), buffer); // async: don't block the event loop
   return `/uploads/${name}`;
+}
+
+// Delete stored images given their URLs (Supabase public URL or /uploads/ path).
+// Best-effort, fire-and-forget — used to reclaim evicted dispatch frames.
+async function deleteImagesByUrl(urls) {
+  const names = (urls || []).filter(Boolean).map((u) => String(u).split('/').pop());
+  if (!names.length) return;
+  try {
+    if (supa.SUPA_ENABLED) await supa.deleteImages(names);
+    else for (const n of names) await fs.promises.unlink(path.join(UPLOAD_DIR, n)).catch(() => {});
+  } catch { /* best effort */ }
 }
 
 function clearLocalUploads() {
@@ -142,8 +159,9 @@ function checkArrival(drone, dispatch) {
   const ad = dispatch.assignedDrones.find((a) => a.id === drone.id);
   if (ad) ad.arrived = true;
   db.save();
+  // Only emit dispatch:arrived — the portal's handler already refetches/re-renders,
+  // so a second dispatch:updated here would just double the work per arrival.
   toPolice('dispatch:arrived', { dispatchId: dispatch.id, ...rec });
-  toPolice('dispatch:updated', dispatch);
 }
 
 // ---- read endpoints ------------------------------------------------------
@@ -239,6 +257,14 @@ app.post('/api/analyze', async (req, res) => {
             reviewNote: null
           };
           db.alerts().push(alert);
+          // Cap total alerts (like mainForce/frames). Never drop a pending alert —
+          // it's still referenced by escalate/dismiss + dedup; evict oldest reviewed.
+          if (db.alerts().length > MAX_ALERTS) {
+            const pending = db.alerts().filter((a) => a.status === 'pending_review');
+            const keep = Math.max(0, MAX_ALERTS - pending.length);
+            const reviewed = db.alerts().filter((a) => a.status !== 'pending_review').slice(-keep);
+            db.state.alerts = [...reviewed, ...pending];
+          }
           drone.status = 'alerting';
           db.save();
           toPolice('alert:new', alert);
@@ -412,7 +438,10 @@ app.post('/api/dispatches', (req, res) => {
 
 // ---- dispatched drone streams a live frame ------------------------------
 
-app.post('/api/dispatches/:id/frame', async (req, res) => {
+const frameSaveCounter = new Map(); // dispatchId -> count, for the 1-in-N archival throttle
+const FRAME_SAVE_EVERY = 4; // archive every 4th frame (the live view is inline, this is history)
+
+app.post('/api/dispatches/:id/frame', (req, res) => {
   const dispatch = db.find('dispatches', req.params.id);
   if (!dispatch) return res.status(404).json({ error: 'unknown dispatch' });
   if (dispatch.status !== 'active') return res.status(409).json({ error: 'dispatch not active' });
@@ -420,29 +449,34 @@ app.post('/api/dispatches/:id/frame', async (req, res) => {
   const { droneId, image } = req.body || {};
   const drone = db.find('drones', droneId);
   if (!drone) return res.status(404).json({ error: 'unknown drone' });
+  if (!stripBase64(image)) return res.status(400).json({ error: 'no image' });
 
-  const url = await saveImage(image);
-  if (!url) return res.status(400).json({ error: 'no image' });
+  const at = new Date().toISOString();
+  // Relay the frame INLINE for immediate display. This keeps Supabase Storage off the
+  // critical path — previously we uploaded the JPEG AND every portal re-downloaded it,
+  // stacking ~2 network round-trips per frame on top of the interval (the "laggy footage").
+  toPolice('dispatch:frame', { dispatchId: dispatch.id, droneId: drone.id, droneName: drone.name, at, image });
+  res.json({ ok: true });
 
-  // Re-validate after the upload await: the dispatch may have been resolved or cleared
-  // (and the drone re-assigned) while the image was uploading — don't attach a stale frame.
-  if (dispatch.status !== 'active' || !db.find('dispatches', dispatch.id))
-    return res.status(409).json({ error: 'dispatch no longer active' });
-
-  const frame = {
-    id: uid('frame'),
-    droneId: drone.id,
-    droneName: drone.name,
-    url,
-    at: new Date().toISOString()
-  };
-  dispatch.frames.push(frame);
-  if (dispatch.frames.length > MAX_FRAMES_PER_DISPATCH)
-    dispatch.frames = dispatch.frames.slice(-MAX_FRAMES_PER_DISPATCH);
-  db.save();
-
-  toPolice('dispatch:frame', { dispatchId: dispatch.id, frame });
-  res.json({ ok: true, frame });
+  // Archive a thumbnail occasionally (1-in-N) for late-join / reload — fire-and-forget,
+  // URL only (never the base64 image, which would bloat every Supabase/JSON sync).
+  const n = (frameSaveCounter.get(dispatch.id) || 0) + 1;
+  frameSaveCounter.set(dispatch.id, n);
+  if (n % FRAME_SAVE_EVERY !== 1) return; // save the 1st, 5th, 9th… frame only
+  saveImage(image)
+    .then((url) => {
+      if (!url) return;
+      const d = db.find('dispatches', dispatch.id);
+      if (!d || d.status !== 'active') return;
+      d.frames.push({ id: uid('frame'), droneId: drone.id, droneName: drone.name, url, at });
+      if (d.frames.length > MAX_FRAMES_PER_DISPATCH) {
+        const evicted = d.frames.slice(0, d.frames.length - MAX_FRAMES_PER_DISPATCH);
+        d.frames = d.frames.slice(-MAX_FRAMES_PER_DISPATCH);
+        deleteImagesByUrl(evicted.map((f) => f.url)); // reclaim evicted Storage objects
+      }
+      db.save();
+    })
+    .catch(() => {});
 });
 
 // ---- drone police conveys info about a dispatch to main force ------------
@@ -494,6 +528,7 @@ app.post('/api/dispatches/:id/resolve', (req, res) => {
 
   dispatch.status = 'resolved';
   dispatch.resolvedAt = new Date().toISOString();
+  frameSaveCounter.delete(dispatch.id); // stop tracking archival throttle for this dispatch
 
   for (const ad of dispatch.assignedDrones) {
     const drone = db.find('drones', ad.id);
