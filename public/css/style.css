@@ -74,13 +74,14 @@ h1 .lucide, h3 .lucide, .section-title .lucide { margin-right: 6px; }
 /* ---------- tabs ---------- */
 .tabs { display: flex; gap: 8px; padding: 16px 22px 0; flex-wrap: wrap; }
 .tab {
-  padding: 10px 18px; border-radius: 10px 10px 0 0; cursor: pointer;
+  padding: 10px 18px; border-radius: 10px; cursor: pointer;
   background: transparent; color: var(--muted); border: 1px solid transparent; font-weight: 600; font-size: 14px;
 }
-.tab.active { background: var(--panel); color: var(--text); border-color: var(--line); border-bottom-color: var(--panel); }
+.tab:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.tab.active { background: var(--panel); color: var(--text); border-color: var(--line); }
 .tab .pill { background: var(--sev-high); color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 7px; margin-left: 6px; }
 
-.panel-wrap { padding: 0 22px 40px; }
+.panel-wrap { padding: 20px 22px 40px; }
 .panel { display: none; }
 .panel.active { display: block; }
 
