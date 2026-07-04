@@ -23,6 +23,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const HTTPS_PORT = Number(process.env.HTTPS_PORT) || PORT + 443; // 3443 by default
 const MAX_FRAMES_PER_DISPATCH = 16;
+// Police authorization key required to clear captured images (change via .env).
+const CLEAR_SECRET = process.env.CLEAR_SECRET || 'police2026';
 
 const app = express();
 const server = http.createServer(app);
@@ -62,6 +64,19 @@ async function saveImage(dataUrl) {
   }
   fs.writeFileSync(path.join(UPLOAD_DIR, name), buffer);
   return `/uploads/${name}`;
+}
+
+function clearLocalUploads() {
+  let n = 0;
+  try {
+    for (const f of fs.readdirSync(UPLOAD_DIR)) {
+      fs.unlinkSync(path.join(UPLOAD_DIR, f));
+      n++;
+    }
+  } catch {
+    /* nothing to clear */
+  }
+  return n;
 }
 
 const toPolice = (event, data) => io.to('police').emit(event, data);
@@ -474,6 +489,35 @@ app.post('/api/admin/reset', (_req, res) => {
   }
   pushStats();
   res.json({ ok: true });
+});
+
+// ---- police: clear captured images (authorization-key protected) --------
+
+app.post('/api/admin/clear-images', async (req, res) => {
+  const { secretKey, mode } = req.body || {};
+  if (secretKey !== CLEAR_SECRET) return res.status(403).json({ error: 'Invalid authorization key' });
+
+  let cleared = 0;
+  try {
+    cleared = supa.SUPA_ENABLED ? await supa.clearImages() : clearLocalUploads();
+  } catch (err) {
+    return res.status(500).json({ error: 'failed to clear images: ' + err.message });
+  }
+
+  // Drop image references so the portal shows placeholders instead of dead links.
+  for (const a of db.alerts()) a.imageUrl = null;
+  for (const d of db.dispatches()) d.frames = [];
+  db.save();
+
+  toPolice('refresh', {});
+  const archived = mode === 'archive';
+  res.json({
+    ok: true,
+    cleared,
+    message: archived
+      ? `Archived to police server — ${cleared} image(s) moved, drone cache cleared.`
+      : `${cleared} captured image(s) cleared from drone storage.`
+  });
 });
 
 // ---- sockets -------------------------------------------------------------

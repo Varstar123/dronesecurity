@@ -17,6 +17,7 @@
     <div class="spacer"></div>
     <span id="aiBadge" class="badge mock">AI: —</span>
     <a class="navlink" href="/drone" target="_blank">🚁 Drone Camera App</a>
+    <button class="btn ghost sm" id="clearImgBtn" title="Clear captured drone images (police authorization)">🗑️ Clear images</button>
     <button class="btn ghost sm" id="resetBtn" title="Clear all incidents (demo)">Reset demo</button>
   </div>
 
@@ -116,6 +117,20 @@
       <div class="actions" style="margin-top:14px; justify-content:flex-end">
         <button class="btn ghost" id="modalCancel">Cancel</button>
         <button class="btn primary" id="modalOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-back" id="clearBack">
+    <div class="modal">
+      <h3>🗑️ Clear captured drone images</h3>
+      <p class="small">Police authorization required. Enter the key to clear all images captured by the drones from storage.</p>
+      <input type="password" id="clearKey" placeholder="Authorization key" autocomplete="off" />
+      <div class="small" id="clearMsg" style="margin-top:10px"></div>
+      <div class="actions" style="margin-top:14px; justify-content:flex-end; flex-wrap:wrap">
+        <button class="btn ghost" id="clearCancel">Cancel</button>
+        <button class="btn warn" id="clearArchive">📦 Move to police server &amp; clear cache</button>
+        <button class="btn danger" id="clearDelete">🗑️ Clear drone images</button>
       </div>
     </div>
   </div>

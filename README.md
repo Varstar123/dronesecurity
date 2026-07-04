@@ -149,11 +149,14 @@ See [`.env.example`](.env.example). Common ones:
 
 | Variable | Purpose |
 |----------|---------|
-| `ANTHROPIC_API_KEY` | Enables real Claude vision analysis. Unset = simulation. |
-| `AI_MODE` | Force `live` or `mock`. |
-| `AI_MODEL` | Vision model (default `claude-opus-4-8`). |
-| `PORT` | HTTP port (default `3000`). |
-| `HTTPS_PORT` | HTTPS port for phone camera (default `3443`). |
+| `GROQ_API_KEY` | Enables **Groq** vision (fast, free tier). Preferred provider. |
+| `GROQ_MODEL` | Groq vision model (default `meta-llama/llama-4-scout-17b-16e-instruct`). |
+| `ANTHROPIC_API_KEY` | Enables **Claude** vision (alternative). Unset + no Groq = simulation. |
+| `AI_PROVIDER` | Force `groq`, `claude`, or `mock`. |
+| `SUPABASE_URL` / `SUPABASE_SECRET_KEY` | Use cloud Postgres + image Storage (else local JSON). |
+| `CLEAR_SECRET` | Police key for the portal's "Clear images" action (default `police2026`). |
+| `PORT` | HTTP port (default `3000`). Managed hosts set this automatically. |
+| `HTTPS_PORT` | Local HTTPS port for the phone camera (default `3443`). |
 
 ---
 
