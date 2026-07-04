@@ -312,10 +312,16 @@ app.post('/api/dispatches', (req, res) => {
   const nearby = findNearbyDrones({ lat, lng }, db.drones(), {
     radiusKm: typeof radiusKm === 'number' ? radiusKm : 3
   });
-  if (nearby.length === 0)
+  if (nearby.length === 0) {
+    const online = db.drones().filter((d) => d.connected).length;
+    if (online === 0)
+      return res.status(409).json({
+        error: 'No drones are online. Open the drone app on a phone (so a drone comes online) before dispatching.'
+      });
     return res.status(409).json({
-      error: 'No online drones available. Open the drone app on a phone (so a drone comes online) before dispatching.'
+      error: `Your ${online} online drone(s) are already on an active dispatch. Resolve that dispatch first to free a drone, then dispatch again.`
     });
+  }
 
   const dispatch = {
     id: uid('disp'),
