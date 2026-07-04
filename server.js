@@ -539,6 +539,16 @@ app.post('/api/dispatches/clear-resolved', (_req, res) => {
   res.json({ ok: true, cleared: before - db.dispatches().length });
 });
 
+// Clear reviewed incident alerts (keeps the pending queue).
+app.post('/api/alerts/clear-reviewed', (_req, res) => {
+  const before = db.alerts().length;
+  db.state.alerts = db.alerts().filter((a) => a.status === 'pending_review');
+  db.save();
+  toPolice('refresh', {});
+  pushStats();
+  res.json({ ok: true, cleared: before - db.alerts().length });
+});
+
 // ---- resolve coordinates from a shared map/location link ----------------
 
 const MAP_COORD_PATTERNS = [

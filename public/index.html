@@ -43,7 +43,10 @@
     <section class="panel active" id="panel-alerts">
       <div class="section-title">Pending drone alerts — tap a card for full details, then decide</div>
       <div id="alertsPending" class="alert-list"></div>
-      <div class="section-title" style="margin-top:26px">Reviewed history</div>
+      <div class="disp-bar" style="margin-top:26px">
+        <div class="section-title" style="margin:0">Reviewed history</div>
+        <button class="btn ghost sm" id="clearAlertsBtn" style="display:none"><i data-lucide="trash-2"></i> Clear history</button>
+      </div>
       <div id="alertsHistory" class="alert-list"></div>
     </section>
 
@@ -91,7 +94,10 @@
 
     <!-- MAP -->
     <section class="panel" id="panel-map">
-      <div class="section-title">Live fleet &amp; incident map — click empty space to set a dispatch target</div>
+      <div class="disp-bar">
+        <div class="section-title" style="margin:0">Live fleet &amp; incident map — click to set a dispatch target</div>
+        <button class="btn ghost sm" id="fitMapBtn"><i data-lucide="maximize"></i> Fit all drones</button>
+      </div>
       <div class="map-wrap">
         <div id="map"></div>
         <div class="legend">
