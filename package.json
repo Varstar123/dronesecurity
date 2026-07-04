@@ -1,0 +1,28 @@
+{
+  "name": "smart-drone-security",
+  "version": "1.0.0",
+  "description": "AI Drone Security System for Smart City - GEC Kozhikode S7 Main Project (Group 17)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "drone",
+    "surveillance",
+    "smart-city",
+    "ai",
+    "computer-vision"
+  ],
+  "author": "Group 17 - GEC Kozhikode",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@supabase/supabase-js": "^2.110.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "pg": "^8.22.0",
+    "socket.io": "^4.8.3"
+  }
+}

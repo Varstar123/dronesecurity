@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Drone Camera · Smart City Security</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚁</text></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo">🚁</div>
+    <div>
+      <h1>Drone Camera Unit</h1>
+      <div class="sub">Point the camera at the scene — the AI reports incidents to the police portal</div>
+    </div>
+    <div class="spacer"></div>
+    <span id="aiBadge" class="badge mock">AI: —</span>
+    <a class="navlink" href="/" target="_blank">🖥️ Police Portal</a>
+  </div>
+
+  <div class="drone-shell">
+    <div class="toggle-row">
+      <div>
+        <div class="small">This device is</div>
+        <select id="droneSel" style="margin-top:4px"></select>
+      </div>
+      <div style="text-align:right">
+        <div class="small">Demo scenario (mock AI)</div>
+        <select id="scenario" style="margin-top:4px; width:auto"></select>
+      </div>
+    </div>
+
+    <div class="cam-wrap" style="margin-top:14px">
+      <video id="video" playsinline muted></video>
+      <div class="live-chip" id="liveChip">🔴 LIVE · police viewing</div>
+      <div class="cam-off" id="camOff">
+        <div style="font-size:44px">📷</div>
+        <div>Camera is off</div>
+        <button class="btn primary" id="startCam">Start camera</button>
+      </div>
+      <div class="verdict hidden" id="verdict">
+        <div class="vt" id="vTitle"></div>
+        <div class="vi" id="vInterp"></div>
+      </div>
+      <canvas id="canvas" style="display:none"></canvas>
+    </div>
+
+    <div class="status-strip mon" id="statusStrip">
+      <span class="pulse"></span>
+      <span id="statusText">Idle — start the camera to begin monitoring</span>
+    </div>
+
+    <div class="dispatch-banner" id="dispatchBanner">
+      <div style="font-weight:800; font-size:16px">🚨 DISPATCH — proceed &amp; stream</div>
+      <div class="small" id="dispatchInfo" style="margin-top:4px"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="scanBtn" disabled>🔍 Scan now</button>
+      <button class="btn" id="stopCam" disabled>⏹ Stop camera</button>
+    </div>
+
+    <div class="toggle-row">
+      <div>
+        <div>Auto-monitor</div>
+        <div class="small">Automatically scan the scene on an interval</div>
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; width:auto">
+        <input type="checkbox" id="autoChk" style="width:auto" />
+        <select id="interval" style="width:auto">
+          <option value="5000">5s</option>
+          <option value="8000" selected>8s</option>
+          <option value="15000">15s</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="toggle-row">
+      <div>
+        <div>Use my GPS location</div>
+        <div class="small">Otherwise the drone's assigned sector location is used</div>
+      </div>
+      <input type="checkbox" id="gpsChk" style="width:auto" />
+    </div>
+
+    <p class="small" style="margin-top:14px">💡 Tip for the demo: no API key needed — pick a scenario above (Fire, Traffic, etc.) and press <b>Scan now</b>. With a Claude API key set, it analyses the real camera image instead.</p>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/drone.js"></script>
+</body>
+</html>
