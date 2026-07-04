@@ -26,8 +26,8 @@
         <div class="small">This device is</div>
         <select id="droneSel" style="margin-top:4px"></select>
       </div>
-      <div style="text-align:right">
-        <div class="small">Demo scenario (mock AI)</div>
+      <div id="scenarioBox" style="text-align:right">
+        <div class="small">Scenario</div>
         <select id="scenario" style="margin-top:4px; width:auto"></select>
       </div>
     </div>
@@ -92,7 +92,7 @@
       <input type="checkbox" id="gpsChk" checked style="width:auto" />
     </div>
 
-    <p class="small" style="margin-top:14px"><i data-lucide="lightbulb"></i> Tip for the demo: no API key needed — pick a scenario above (Fire, Traffic, etc.) and press <b>Scan now</b>. With a Groq/Claude API key set, it analyses the real camera image instead.</p>
+    <p class="small" style="margin-top:14px"><i data-lucide="lightbulb"></i> Point the camera at the scene — the on-board AI automatically detects incidents and reports them to the police control center.</p>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

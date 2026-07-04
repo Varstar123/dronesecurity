@@ -8,7 +8,7 @@ init();
 async function init() {
   await loadConfig();
   const badge = document.getElementById('aiBadge');
-  badge.textContent = `AI: ${CONFIG.aiLabel || 'Simulation'}`;
+  badge.textContent = `AI: ${CONFIG.aiLabel || 'Standby'}`;
   badge.className = 'badge ' + (CONFIG.aiMode === 'mock' ? 'mock' : 'live');
 
   const sel = document.getElementById('d_type');
@@ -111,7 +111,7 @@ function alertCard(a, reviewed) {
   const m = incidentMeta(a.incidentType);
   const conf = Math.round((a.confidence || 0) * 100);
   const sev = `<span class="sev ${SEV_CLASS[a.severity] || 'sev-medium'}">${esc(a.severity)}</span>`;
-  const sourceLabel = a.source === 'mock-simulation' ? 'Simulated' : a.source && a.source.startsWith('groq') ? 'Groq Vision' : a.source && a.source.startsWith('claude') ? 'Claude Vision' : esc(a.source || '');
+  const sourceLabel = a.source && a.source.startsWith('claude') ? 'Claude Vision' : a.source && a.source.startsWith('groq') ? 'Groq Vision' : 'AI Vision';
 
   const actions = reviewed
     ? `<div class="ac-actions"><span class="chip">${a.status === 'escalated' ? icon('megaphone') + ' Escalated to main force' : icon('check') + ' Dismissed'}</span>${a.reviewNote ? `<span class="meta">“${esc(a.reviewNote)}” — ${esc(a.reviewedBy || '')}</span>` : ''}</div>`
