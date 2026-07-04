@@ -1,0 +1,23 @@
+# One-click deploy config for Render (https://render.com).
+# In Render: New → Blueprint → connect this repo. It runs the persistent
+# Node + Socket.IO server (which Vercel's serverless model cannot host).
+# You'll be prompted for the secret values (marked sync: false).
+services:
+  - type: web
+    name: dronesecurity
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/stats
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GROQ_MODEL
+        value: meta-llama/llama-4-scout-17b-16e-instruct
+      - key: GROQ_API_KEY
+        sync: false # paste in the Render dashboard
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false

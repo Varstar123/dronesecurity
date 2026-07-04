@@ -585,6 +585,11 @@ function loadOrCreateCerts() {
 }
 
 function startHttps() {
+  // Managed hosts (Render/Railway/etc.) terminate TLS at their edge and give a
+  // public https:// URL, so the local self-signed listener isn't needed there.
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER || process.env.RAILWAY_ENVIRONMENT) {
+    return false;
+  }
   const creds = loadOrCreateCerts();
   if (!creds) {
     console.warn('[https] no certificate available — phone-over-WiFi camera disabled (HTTP only).');

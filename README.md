@@ -101,6 +101,29 @@ captured images to a public **Storage** bucket:
 
 ---
 
+## Deploying to the web
+
+This is a **persistent Node + Socket.IO server** (it holds live WebSocket
+connections for real-time alerts, dispatch commands and the live camera). Deploy
+it on a host that runs a long-lived process:
+
+> ⚠️ **Vercel / Netlify won't work** — they are *serverless* and don't support
+> WebSocket/Socket.IO servers, so the function crashes on invocation. Use one of
+> the platforms below instead (no code changes needed).
+
+**Render (recommended, free):**
+1. [render.com](https://render.com) → **New → Blueprint** → connect this repo
+   (it reads [`render.yaml`](render.yaml)), or **New → Web Service** with
+   build `npm install` and start `npm start`.
+2. Add env vars: `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`
+   (and optionally `GROQ_MODEL`). Do **not** set `PORT` — Render provides it.
+3. Deploy → you get `https://<app>.onrender.com`. Because it's real HTTPS, the
+   phone camera works over the internet with **no certificate warning**.
+
+**Railway / Fly.io** work the same way with the same env vars.
+
+---
+
 ## Suggested demo script (for the review)
 
 1. **Autonomous alert:** On the phone/drone app, scenario = *Building Fire* →
