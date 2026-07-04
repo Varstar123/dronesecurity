@@ -100,6 +100,12 @@
       </div>
       <div class="map-wrap">
         <div id="map"></div>
+        <div id="pinConfirm" class="pin-confirm">
+          <i data-lucide="map-pin"></i>
+          <span id="pinCoords"></span>
+          <button class="btn danger sm" id="pinUse"><i data-lucide="send"></i> Use for dispatch</button>
+          <button class="btn ghost sm" id="pinCancel"><i data-lucide="x"></i></button>
+        </div>
         <div class="legend">
           <span><span class="dot" style="background:#16a34a"></span>Monitoring</span>
           <span><span class="dot" style="background:#f59e0b"></span>Alerting</span>

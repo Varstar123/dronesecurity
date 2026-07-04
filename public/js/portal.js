@@ -29,6 +29,15 @@ async function init() {
   document.getElementById('clearAlertsBtn').onclick = async () => {
     if (confirm('Clear all reviewed alerts from the history?')) await api('/api/alerts/clear-reviewed', { method: 'POST' });
   };
+  document.getElementById('pinUse').onclick = () => {
+    hidePinConfirm();
+    document.querySelector('.tab[data-tab="dispatch"]').click();
+  };
+  document.getElementById('pinCancel').onclick = () => {
+    state.pendingTarget = null;
+    renderMap();
+    hidePinConfirm();
+  };
 
   wireSocket();
   socket.emit('police:join');
@@ -342,6 +351,7 @@ function setupDispatchForm() {
       document.getElementById('d_place').value = '';
       state.pendingTarget = null;
       renderMap();
+      hidePinConfirm();
     } catch (e) {
       alert('Dispatch failed: ' + e.message);
     }
@@ -485,6 +495,19 @@ function fitMap() {
   else lmap.fitBounds(pts, { padding: [45, 45], maxZoom: 15 });
 }
 
+function showPinConfirm() {
+  const el = document.getElementById('pinConfirm');
+  const t = state.pendingTarget;
+  if (!el || !t) return;
+  document.getElementById('pinCoords').textContent = `${t.lat.toFixed(5)}, ${t.lng.toFixed(5)}`;
+  el.classList.add('show');
+  refreshIcons();
+}
+function hidePinConfirm() {
+  const el = document.getElementById('pinConfirm');
+  if (el) el.classList.remove('show');
+}
+
 function initMap() {
   const c = CONFIG.cityCenter;
   lmap = L.map('map', { zoomControl: true, attributionControl: true }).setView([c.lat, c.lng], 14);
@@ -500,7 +523,7 @@ function initMap() {
     document.getElementById('d_lat').value = e.latlng.lat.toFixed(5);
     document.getElementById('d_lng').value = e.latlng.lng.toFixed(5);
     renderMap();
-    document.querySelector('.tab[data-tab="dispatch"]').click();
+    showPinConfirm(); // ask to confirm instead of jumping to the dispatch tab
   });
 }
 
