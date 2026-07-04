@@ -58,16 +58,35 @@ function queueSupabaseSync() {
     });
 }
 
+// Async, serialized JSON write so a large state doesn't block the event loop and
+// two overlapping writes never interleave and corrupt the file.
+let writing = false;
+let writeAgain = false;
+async function writeJson() {
+  if (writing) {
+    writeAgain = true;
+    return;
+  }
+  writing = true;
+  try {
+    await fs.promises.writeFile(STORE_FILE, JSON.stringify(state, null, 2));
+  } catch (err) {
+    console.error('[db] failed to persist store:', err.message);
+  } finally {
+    writing = false;
+    if (writeAgain) {
+      writeAgain = false;
+      writeJson();
+    }
+  }
+}
+
 // Debounced write so a burst of updates doesn't hammer the disk / network.
 function persist() {
   if (flushTimer) return;
   flushTimer = setTimeout(() => {
     flushTimer = null;
-    try {
-      fs.writeFileSync(STORE_FILE, JSON.stringify(state, null, 2));
-    } catch (err) {
-      console.error('[db] failed to persist store:', err.message);
-    }
+    writeJson();
     if (supa.SUPA_ENABLED) queueSupabaseSync();
   }, 300);
 }
@@ -86,14 +105,25 @@ function flushSync() {
 }
 
 let shuttingDown = false;
-for (const sig of ['SIGINT', 'SIGTERM']) {
-  process.on(sig, () => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-    flushSync();
-    process.exit(0);
-  });
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  flushSync(); // local JSON immediately — guaranteed even if Supabase is slow/down
+  if (supa.SUPA_ENABLED) {
+    // Flush the latest state to Supabase before exiting so a Render restart doesn't
+    // lose the last ~300ms of debounced changes. Bounded so we never hang shutdown.
+    try {
+      await Promise.race([
+        supa.syncAll(state),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('flush timeout')), 4000))
+      ]);
+    } catch (err) {
+      console.warn('[db] final Supabase flush failed:', err.message);
+    }
+  }
+  process.exit(0);
 }
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, shutdown);
 process.on('exit', flushSync);
 
 export const db = {

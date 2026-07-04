@@ -21,7 +21,7 @@ export function haversineKm(a, b) {
 // regardless of distance — because they're the only ones that actually can.
 export function findNearbyDrones(target, drones, { radiusKm = 3, minCount = 3 } = {}) {
   const ranked = drones
-    .filter((d) => d.connected && d.status !== 'dispatched' && typeof d.lat === 'number')
+    .filter((d) => d.connected && d.status !== 'dispatched' && !d.activeDispatchId && typeof d.lat === 'number')
     .map((d) => ({ ...d, distanceKm: haversineKm(target, { lat: d.lat, lng: d.lng }) }))
     .sort((x, y) => x.distanceKm - y.distanceKm);
 
