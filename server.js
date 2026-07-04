@@ -14,7 +14,7 @@ import { Server as SocketServer } from 'socket.io';
 
 import { db, UPLOAD_DIR } from './src/db.js';
 import * as supa from './src/supa.js';
-import { seedFleet, CITY_CENTER, LANDMARKS, HOME_POSITIONS } from './src/seed.js';
+import { seedFleet, CITY_CENTER, LANDMARKS } from './src/seed.js';
 import { analyzeFrame, AI_MODE, AI_LABEL } from './src/ai.js';
 import { findNearbyDrones, haversineKm } from './src/geo.js';
 import { INCIDENT_TYPES, meta } from './src/incidents.js';
@@ -27,8 +27,6 @@ const MAX_FRAMES_PER_DISPATCH = 16;
 const CLEAR_SECRET = process.env.CLEAR_SECRET || 'police2026';
 // A drone counts as "reached the location" within this distance of the target.
 const ARRIVAL_RADIUS_KM = 0.2;
-// Simulated (non-phone) drones fly toward a dispatch target on these intervals.
-const dispatchMovers = new Map(); // dispatchId -> [intervalId, ...]
 
 const app = express();
 const server = http.createServer(app);
@@ -125,44 +123,6 @@ function checkArrival(drone, dispatch) {
   db.save();
   toPolice('dispatch:arrived', { dispatchId: dispatch.id, ...rec });
   toPolice('dispatch:updated', dispatch);
-}
-
-// Simulated (non-connected) drones don't have real GPS, so we fly them toward
-// the target a step at a time — this both animates the "surround" on the map
-// and triggers the same arrival alert. The real phone-drone uses its live GPS.
-function startMovers(dispatch) {
-  const intervals = [];
-  for (const ad of dispatch.assignedDrones) {
-    const drone = db.find('drones', ad.id);
-    if (!drone || drone.connected) continue; // phone-drone arrives via real GPS
-    if (dispatch.arrived.some((a) => a.droneId === drone.id)) continue;
-    const iv = setInterval(() => {
-      const d = db.find('drones', ad.id);
-      if (!d || d.activeDispatchId !== dispatch.id || dispatch.status !== 'active') {
-        clearInterval(iv);
-        return;
-      }
-      d.lat += (dispatch.lat - d.lat) * 0.45;
-      d.lng += (dispatch.lng - d.lng) * 0.45;
-      d.lastSeen = new Date().toISOString();
-      toPolice('drone:status', d);
-      checkArrival(d, dispatch);
-      if (dispatch.arrived.some((a) => a.droneId === d.id)) clearInterval(iv);
-    }, 1500);
-    intervals.push(iv);
-  }
-  dispatchMovers.set(dispatch.id, intervals);
-}
-
-function clearMovers(dispatchId) {
-  const list = dispatchMovers.get(dispatchId);
-  if (list) list.forEach(clearInterval);
-  dispatchMovers.delete(dispatchId);
-}
-
-function clearAllMovers() {
-  for (const list of dispatchMovers.values()) list.forEach(clearInterval);
-  dispatchMovers.clear();
 }
 
 // ---- read endpoints ------------------------------------------------------
@@ -352,7 +312,10 @@ app.post('/api/dispatches', (req, res) => {
   const nearby = findNearbyDrones({ lat, lng }, db.drones(), {
     radiusKm: typeof radiusKm === 'number' ? radiusKm : 3
   });
-  if (nearby.length === 0) return res.status(409).json({ error: 'no drones available' });
+  if (nearby.length === 0)
+    return res.status(409).json({
+      error: 'No online drones available. Open the drone app on a phone (so a drone comes online) before dispatching.'
+    });
 
   const dispatch = {
     id: uid('disp'),
@@ -399,12 +362,12 @@ app.post('/api/dispatches', (req, res) => {
     const drone = db.find('drones', nd.id);
     if (drone) toPolice('drone:status', drone);
   }
-  // Some drones may already be at the target; the rest fly in (or use real GPS).
+  // Dispatched drones reach the target via their real GPS; check if any are
+  // already within range right now.
   for (const nd of nearby) {
     const drone = db.find('drones', nd.id);
     if (drone) checkArrival(drone, dispatch);
   }
-  startMovers(dispatch);
   pushStats();
   res.json(dispatch);
 });
@@ -484,18 +447,12 @@ app.post('/api/dispatches/:id/resolve', (req, res) => {
 
   dispatch.status = 'resolved';
   dispatch.resolvedAt = new Date().toISOString();
-  clearMovers(dispatch.id);
 
   for (const ad of dispatch.assignedDrones) {
     const drone = db.find('drones', ad.id);
     if (drone && drone.activeDispatchId === dispatch.id) {
       drone.status = 'monitoring';
       drone.activeDispatchId = null;
-      // Simulated drones fly back to base; the phone-drone keeps its real GPS.
-      if (!drone.connected && HOME_POSITIONS[drone.id]) {
-        drone.lat = HOME_POSITIONS[drone.id].lat;
-        drone.lng = HOME_POSITIONS[drone.id].lng;
-      }
       toDrone(drone.id, 'drone:command', { type: 'resume', message: 'Dispatch resolved. Resume monitoring.' });
     }
   }
@@ -547,7 +504,6 @@ app.post('/api/drones/:id/live/frame', (req, res) => {
 // ---- demo reset (keeps the fleet, clears incidents) ----------------------
 
 app.post('/api/admin/reset', (_req, res) => {
-  clearAllMovers();
   db.state.alerts = [];
   db.state.dispatches = [];
   db.state.mainForce = [];

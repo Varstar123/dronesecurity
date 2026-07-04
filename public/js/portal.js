@@ -156,6 +156,39 @@ function reviewAlert(id, kind) {
 }
 
 // ---------- dispatch ----------
+// Accept coordinates as plain decimals OR with degree symbols + N/S/E/W,
+// e.g. "11.2545° N", "-11.2545", "75.7800 E".
+function parseCoord(token) {
+  const m = String(token).trim().match(/(-?\d+(?:\.\d+)?)\s*°?\s*([NSEWnsew])?/);
+  if (!m) return NaN;
+  let v = parseFloat(m[1]);
+  const dir = (m[2] || '').toUpperCase();
+  if (dir === 'S' || dir === 'W') v = -Math.abs(v);
+  return v;
+}
+// Parse a full pair like "11.2545° N 75.7800° E" or "11.2545, 75.7800".
+function parseCoordPair(str) {
+  const matches = [...String(str).matchAll(/(-?\d+(?:\.\d+)?)\s*°?\s*([NSEWnsew])?/g)];
+  if (matches.length < 2) return null;
+  const nums = matches.slice(0, 2).map((m) => {
+    let v = parseFloat(m[1]);
+    const dir = (m[2] || '').toUpperCase();
+    if (dir === 'S' || dir === 'W') v = -Math.abs(v);
+    return { v, dir };
+  });
+  let lat, lng;
+  for (const n of nums) {
+    if (n.dir === 'N' || n.dir === 'S') lat = n.v;
+    else if (n.dir === 'E' || n.dir === 'W') lng = n.v;
+  }
+  if (lat === undefined || lng === undefined) {
+    lat = nums[0].v;
+    lng = nums[1].v;
+  }
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
 const DISPATCH_PRESETS = [
   { icon: '💍', label: 'Jewellery robbery', type: 'theft_robbery', desc: 'Armed robbery reported at a jewellery shop.' },
   { icon: '🏦', label: 'Bank robbery', type: 'theft_robbery', desc: 'Robbery in progress at a bank.' },
@@ -197,9 +230,21 @@ function setupDispatchForm() {
       })
   );
 
+  // Paste a full coordinate string (e.g. "11.2545° N 75.7800° E").
+  const coordsInput = document.getElementById('d_coords');
+  if (coordsInput)
+    coordsInput.oninput = () => {
+      const p = parseCoordPair(coordsInput.value);
+      if (!p) return;
+      document.getElementById('d_lat').value = p.lat.toFixed(5);
+      document.getElementById('d_lng').value = p.lng.toFixed(5);
+      state.pendingTarget = { lat: p.lat, lng: p.lng };
+      renderMap();
+    };
+
   document.getElementById('d_send').onclick = async () => {
-    const lat = parseFloat(document.getElementById('d_lat').value);
-    const lng = parseFloat(document.getElementById('d_lng').value);
+    const lat = parseCoord(document.getElementById('d_lat').value);
+    const lng = parseCoord(document.getElementById('d_lng').value);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       alert('Pick a location first — choose a known location, click the Fleet Map, or type coordinates.');
       return;
@@ -375,7 +420,8 @@ function emojiIcon(txt, size) {
   });
 }
 function droneIcon(d) {
-  const col = STATUS_COLOR[d.status] || '#64748b';
+  const eff = d.connected ? d.status : 'offline';
+  const col = STATUS_COLOR[eff] || '#64748b';
   const ring = d.connected ? `box-shadow:0 0 0 4px ${col}55;` : '';
   return L.divIcon({
     className: 'drone-pin',
@@ -424,12 +470,13 @@ function renderMap() {
 
 // ---------- drone fleet list + on-demand live view ----------
 function droneRow(d) {
-  const col = STATUS_COLOR[d.status] || '#64748b';
+  const eff = d.connected ? d.status : 'offline';
+  const col = STATUS_COLOR[eff] || '#64748b';
   return `<div class="card" style="padding:0">
     <div class="body" style="gap:6px; padding:12px 14px">
       <div class="row" style="justify-content:space-between">
         <h3 style="font-size:15px">🚁 ${esc(d.name)}</h3>
-        <span class="chip" style="border-color:${col}; color:${col}">${esc(d.status)}</span>
+        <span class="chip" style="border-color:${col}; color:${col}">${esc(eff)}</span>
       </div>
       <div class="meta">${esc(d.sector)}</div>
       <div class="meta">${d.connected ? '🟢 online' : '⚪ offline'} · 🔋 ${d.battery}%${d.liveView ? ' · 📹 viewing' : ''}</div>
