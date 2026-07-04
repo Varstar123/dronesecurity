@@ -450,9 +450,9 @@ function renderMap() {
       .bindTooltip(`${incidentMeta(a.incidentType).label} — 🚁 ${esc(a.droneName)}`)
       .addTo(mapMarkers);
   }
-  // active dispatch targets + 200 m arrival radius
+  // active dispatch targets + 20 m arrival radius
   for (const d of state.dispatches.filter((x) => x.status === 'active')) {
-    L.circle([d.lat, d.lng], { radius: 200, color: '#ef4444', weight: 1.5, fillOpacity: 0.08, dashArray: '5 5' }).addTo(mapMarkers);
+    L.circle([d.lat, d.lng], { radius: 20, color: '#ef4444', weight: 1.5, fillOpacity: 0.12, dashArray: '4 4' }).addTo(mapMarkers);
     L.marker([d.lat, d.lng], { icon: emojiIcon('🎯', 24) }).bindTooltip(`Dispatch: ${esc(d.address || 'target')}`).addTo(mapMarkers);
   }
   // pending target from a map click
