@@ -25,6 +25,10 @@ async function init() {
   document.getElementById('resetBtn').onclick = async () => {
     if (confirm('Clear all alerts, dispatches and logs? (drones are kept)')) await api('/api/admin/reset', { method: 'POST' });
   };
+  document.getElementById('fitMapBtn').onclick = fitMap;
+  document.getElementById('clearAlertsBtn').onclick = async () => {
+    if (confirm('Clear all reviewed alerts from the history?')) await api('/api/alerts/clear-reviewed', { method: 'POST' });
+  };
 
   wireSocket();
   socket.emit('police:join');
@@ -88,7 +92,7 @@ function setupTabs() {
       document.querySelectorAll('.panel').forEach((x) => x.classList.remove('active'));
       t.classList.add('active');
       document.getElementById('panel-' + t.dataset.tab).classList.add('active');
-      if (t.dataset.tab === 'map') setTimeout(renderMap, 80); // let the panel size before Leaflet inits
+      if (t.dataset.tab === 'map') setTimeout(() => { renderMap(); fitMap(); }, 80); // size + frame all drones
     };
   });
 }
@@ -141,6 +145,8 @@ function renderAlerts() {
   const h = document.getElementById('alertsHistory');
   p.innerHTML = pending.length ? pending.map((a) => alertCard(a, false)).join('') : `<div class="empty">No pending alerts. Drones are monitoring…</div>`;
   h.innerHTML = reviewed.length ? reviewed.map((a) => alertCard(a, true)).join('') : `<div class="empty">Nothing reviewed yet.</div>`;
+  const cab = document.getElementById('clearAlertsBtn');
+  if (cab) cab.style.display = reviewed.length ? '' : 'none';
   for (const wrap of [p, h])
     wrap.querySelectorAll('[data-toggle]').forEach((head) => (head.onclick = () => head.closest('.alert-card').classList.toggle('open')));
   p.querySelectorAll('[data-esc]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); reviewAlert(b.dataset.esc, 'escalate'); }));
@@ -464,6 +470,20 @@ const STATUS_COLOR = { monitoring: '#16a34a', alerting: '#f59e0b', dispatched: '
 
 let lmap = null;
 let mapMarkers = null;
+let mapFitted = false;
+
+// Frame the map to include every drone (wherever their phone GPS puts them),
+// plus any active dispatches / pending incidents.
+function fitMap() {
+  if (!lmap) return;
+  const pts = [];
+  for (const d of state.drones) if (typeof d.lat === 'number') pts.push([d.lat, d.lng]);
+  for (const d of state.dispatches) if (d.status === 'active') pts.push([d.lat, d.lng]);
+  for (const a of state.alerts) if (a.status === 'pending_review' && typeof a.lat === 'number') pts.push([a.lat, a.lng]);
+  if (!pts.length) return;
+  if (pts.length === 1) lmap.setView(pts[0], 14);
+  else lmap.fitBounds(pts, { padding: [45, 45], maxZoom: 15 });
+}
 
 function initMap() {
   const c = CONFIG.cityCenter;
@@ -551,6 +571,7 @@ function renderMap() {
       .addTo(mapMarkers);
   }
   refreshIcons();
+  if (!mapFitted && state.drones.length) { mapFitted = true; fitMap(); } // frame everything on first draw
 }
 
 // ---------- drone fleet list + on-demand live view ----------
