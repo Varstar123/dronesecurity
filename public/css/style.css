@@ -161,7 +161,8 @@ textarea { resize: vertical; min-height: 60px; }
 label.field { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
 
 /* ---------- dispatch ---------- */
-.two-col { display: grid; grid-template-columns: 360px 1fr; gap: 18px; align-items: start; }
+.two-col { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; align-items: start; }
+.two-col > * { min-width: 0; } /* prevent grid items overflowing into the next column */
 .form-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
 .disp-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 details.adv { border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; background: #0d1c2b; }

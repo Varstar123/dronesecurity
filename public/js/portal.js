@@ -490,6 +490,16 @@ function lucidePin(name, color, size) {
     iconAnchor: [size / 2, size / 2]
   });
 }
+// A standard filled teardrop map pin (its tip sits on the exact coordinate).
+function solidPin(color, size) {
+  const h = Math.round(size * 1.32);
+  return L.divIcon({
+    className: 'solid-pin',
+    html: `<svg width="${size}" height="${h}" viewBox="0 0 24 32" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))"><path d="M12 0C5.37 0 0 5.37 0 12c0 8.5 12 20 12 20s12-11.5 12-20C24 5.37 18.63 0 12 0z" fill="${color}"/><circle cx="12" cy="12" r="4.6" fill="#0d1a27"/></svg>`,
+    iconSize: [size, h],
+    iconAnchor: [size / 2, h]
+  });
+}
 function droneIcon(d) {
   const eff = d.connected ? d.status : 'offline';
   const col = STATUS_COLOR[eff] || '#64748b';
@@ -525,11 +535,11 @@ function renderMap() {
   // active dispatch targets + 20 m arrival radius
   for (const d of state.dispatches.filter((x) => x.status === 'active')) {
     L.circle([d.lat, d.lng], { radius: 20, color: '#ef4444', weight: 1.5, fillOpacity: 0.12, dashArray: '4 4' }).addTo(mapMarkers);
-    L.marker([d.lat, d.lng], { icon: lucidePin('crosshair', '#ef4444', 24) }).bindTooltip(`Dispatch: ${esc(d.address || 'target')}`).addTo(mapMarkers);
+    L.marker([d.lat, d.lng], { icon: solidPin('#ef4444', 26) }).bindTooltip(`Dispatch: ${esc(d.address || 'target')}`).addTo(mapMarkers);
   }
   // pending target from a map click
   if (state.pendingTarget) {
-    L.marker([state.pendingTarget.lat, state.pendingTarget.lng], { icon: lucidePin('map-pin', '#e0842b', 26) }).bindTooltip('Dispatch target').addTo(mapMarkers);
+    L.marker([state.pendingTarget.lat, state.pendingTarget.lng], { icon: solidPin('#e0842b', 28) }).bindTooltip('Dispatch target').addTo(mapMarkers);
   }
   // drones
   for (const d of state.drones) {
