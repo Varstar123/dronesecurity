@@ -49,7 +49,9 @@ async function init() {
 
 function wireSocket() {
   socket.on('stats', setStats);
-  socket.on('drone:status', () => refreshDrones());
+  // Update just the one drone from the event payload and coalesce re-renders, instead
+  // of refetching the whole fleet on every position ping (which scales with drones²).
+  socket.on('drone:status', (drone) => { if (drone && drone.id) upsertDrone(drone); else refreshDrones(); });
   socket.on('alert:new', (a) => { refreshAlerts(); toast(a); beep(); });
   socket.on('alert:updated', () => refreshAlerts());
   socket.on('dispatch:new', (d) => { refreshDispatches(); toast({ incidentType: d.incidentType, title: 'Drones dispatched', interpretation: `${d.assignedDrones.length} drones surrounding ${d.address || 'target'}`, sector: d.address }); });
@@ -68,6 +70,24 @@ function wireSocket() {
 
 // ---------- data refresh ----------
 async function refreshDrones() { state.drones = await api('/api/drones'); renderMap(); renderDroneList(); renderDispatches(); }
+
+// Merge a single drone update from a socket event into local state (no network),
+// then re-render on a short debounce so a burst of position pings costs one paint.
+function upsertDrone(drone) {
+  const i = state.drones.findIndex((x) => x.id === drone.id);
+  if (i >= 0) state.drones[i] = drone; else state.drones.push(drone);
+  scheduleDroneRender();
+}
+let droneRenderTimer = null;
+function scheduleDroneRender() {
+  if (droneRenderTimer) return;
+  droneRenderTimer = setTimeout(() => {
+    droneRenderTimer = null;
+    renderMap();
+    renderDroneList();
+    renderDispatches();
+  }, 150);
+}
 async function refreshAlerts() { state.alerts = await api('/api/alerts'); renderAlerts(); renderMap(); }
 async function refreshDispatches() { state.dispatches = await api('/api/dispatches'); renderDispatches(); renderMap(); }
 async function refreshMF() { state.mf = await api('/api/mainforce'); renderMF(); }
@@ -641,6 +661,7 @@ async function openLive(id) {
   wait.textContent = "Waiting for the drone's live feed… (its camera must be on)";
   document.getElementById('liveMeta').textContent = '';
   document.getElementById('liveBack').classList.add('open');
+  socket.emit('police:watch', { droneId: id }); // so the server stops the feed if this tab closes
   try {
     await api(`/api/drones/${id}/live/start`, { method: 'POST' });
   } catch (e) {
@@ -651,7 +672,10 @@ async function closeLive() {
   const id = state.liveDroneId;
   document.getElementById('liveBack').classList.remove('open');
   state.liveDroneId = null;
-  if (id) { try { await api(`/api/drones/${id}/live/stop`, { method: 'POST' }); } catch (e) {} }
+  if (id) {
+    socket.emit('police:unwatch', { droneId: id });
+    try { await api(`/api/drones/${id}/live/stop`, { method: 'POST' }); } catch (e) {}
+  }
 }
 function onLiveFrame({ droneId, image, at }) {
   if (droneId !== state.liveDroneId) return;

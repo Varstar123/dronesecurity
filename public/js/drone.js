@@ -3,6 +3,21 @@ import { api, esc, loadConfig, CONFIG, incidentMeta, icon, incidentIcon, refresh
 const socket = io();
 const $ = (id) => document.getElementById(id);
 
+// Stable per-device id so the server can tell a reconnect (same phone) apart from
+// a real conflict (a different phone grabbing the same drone). Survives reloads.
+const DEVICE_ID = (() => {
+  try {
+    let id = localStorage.getItem('droneDeviceId');
+    if (!id) {
+      id = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random()).slice(2) + Date.now().toString(36);
+      localStorage.setItem('droneDeviceId', id);
+    }
+    return id;
+  } catch {
+    return String(Math.random()).slice(2);
+  }
+})();
+
 const st = {
   droneId: null,
   coords: { lat: CONFIG.cityCenter.lat, lng: CONFIG.cityCenter.lng },
@@ -83,7 +98,7 @@ function selectDrone(id) {
   st.droneId = id;
   const d = st.drones.find((x) => x.id === id);
   if (d) st.coords = { lat: d.lat, lng: d.lng }; // sector baseline; live GPS overrides
-  socket.emit('drone:hello', { droneId: id });
+  socket.emit('drone:hello', { droneId: id, deviceId: DEVICE_ID });
   setStatus('mon', d ? `Monitoring · ${d.sector}` : 'Monitoring');
   populateDroneSelect();
 }
@@ -107,7 +122,7 @@ function randomFreeDroneId() {
 }
 
 function wireSocket() {
-  socket.on('connect', () => { if (st.droneId) socket.emit('drone:hello', { droneId: st.droneId }); });
+  socket.on('connect', () => { if (st.droneId) socket.emit('drone:hello', { droneId: st.droneId, deviceId: DEVICE_ID }); });
   // Another device took/freed a drone → refresh the dropdown's disabled state.
   socket.on('fleet:changed', async () => {
     try { st.drones = await api('/api/drones'); populateDroneSelect(); } catch (e) {}

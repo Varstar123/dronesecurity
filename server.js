@@ -23,6 +23,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const HTTPS_PORT = Number(process.env.HTTPS_PORT) || PORT + 443; // 3443 by default
 const MAX_FRAMES_PER_DISPATCH = 16;
+const MAX_UPDATES_PER_DISPATCH = 50; // field updates kept per dispatch
+const MAX_MAINFORCE = 500; // main-force log records kept in memory / DB
 // Police authorization key required to clear captured images (change via .env).
 const CLEAR_SECRET = process.env.CLEAR_SECRET || 'police2026';
 // A drone counts as "reached the location" within this distance of the target.
@@ -30,7 +32,18 @@ const ARRIVAL_RADIUS_KM = 0.02; // 20 metres
 
 const app = express();
 const server = http.createServer(app);
-const io = new SocketServer(server, { maxHttpBufferSize: 12e6 });
+const io = new SocketServer(server, {
+  maxHttpBufferSize: 12e6,
+  // Detect a phone that vanished (killed app / lost signal) faster than the ~45s
+  // default, so it stops looking online and dispatchable.
+  pingInterval: 10000,
+  pingTimeout: 12000
+});
+
+// Last-resort safety net: a single malformed socket payload or a rejected async
+// operation must never take the whole control-center process down. Log and stay up.
+process.on('uncaughtException', (err) => console.error('[uncaughtException]', err && err.stack ? err.stack : err));
+process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', err && err.stack ? err.stack : err));
 
 app.use(express.json({ limit: '15mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -58,10 +71,18 @@ async function saveImage(dataUrl) {
   const name = `${uid('img')}.jpg`;
   const buffer = Buffer.from(b64, 'base64');
   if (supa.SUPA_ENABLED) {
-    try {
-      return await supa.uploadImage(buffer, name);
-    } catch (err) {
-      console.warn('[img] Storage upload failed, using local file:', err.message);
+    // Try the shared object store (with one retry). Do NOT fall back to a local
+    // file — that path is stored in the shared DB and would 404 on every other
+    // instance (and on the next Render restart). Better to store no image.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await supa.uploadImage(buffer, name);
+      } catch (err) {
+        if (attempt === 1) {
+          console.warn('[img] Storage upload failed after retry, storing no image:', err.message);
+          return null;
+        }
+      }
     }
   }
   fs.writeFileSync(path.join(UPLOAD_DIR, name), buffer);
@@ -184,43 +205,52 @@ app.post('/api/analyze', async (req, res) => {
     const existing = db.alerts().find((a) => a.droneId === drone.id && a.status === 'pending_review');
     if (existing) {
       alert = existing;
-      db.save();
     } else {
       const imageUrl = await saveImage(image);
-      alert = {
-        id: uid('alert'),
-        droneId: drone.id,
-        droneName: drone.name,
-        sector: drone.sector,
-        lat: drone.lat,
-        lng: drone.lng,
-        timestamp: new Date().toISOString(),
-        imageUrl,
-        incidentType: analysis.incidentType,
-        title: analysis.title,
-        severity: analysis.severity,
-        confidence: analysis.confidence,
-        interpretation: analysis.interpretation,
-        recommendedAction: analysis.recommendedAction,
-        source: analysis.source,
-        status: 'pending_review',
-        reviewedBy: null,
-        reviewedAt: null,
-        reviewNote: null
-      };
-      db.alerts().push(alert);
-      drone.status = 'alerting';
-      db.save();
-
-      toPolice('alert:new', alert);
-      droneStatus(drone);
-      pushStats();
+      // Re-validate AFTER the awaits (analyzeFrame + saveImage): during that window the
+      // drone may have been committed to a dispatch, or a concurrent scan may already have
+      // raised an alert for it. Never demote a dispatched drone or inject a stale alert.
+      if (drone.activeDispatchId || drone.status === 'dispatched') {
+        alert = null; // drone is now en route to a dispatch — suppress this alert.
+      } else {
+        const dup = db.alerts().find((a) => a.droneId === drone.id && a.status === 'pending_review');
+        if (dup) {
+          alert = dup;
+        } else {
+          alert = {
+            id: uid('alert'),
+            droneId: drone.id,
+            droneName: drone.name,
+            sector: drone.sector,
+            lat: drone.lat,
+            lng: drone.lng,
+            timestamp: new Date().toISOString(),
+            imageUrl,
+            incidentType: analysis.incidentType,
+            title: analysis.title,
+            severity: analysis.severity,
+            confidence: analysis.confidence,
+            interpretation: analysis.interpretation,
+            recommendedAction: analysis.recommendedAction,
+            source: analysis.source,
+            status: 'pending_review',
+            reviewedBy: null,
+            reviewedAt: null,
+            reviewNote: null
+          };
+          db.alerts().push(alert);
+          drone.status = 'alerting';
+          db.save();
+          toPolice('alert:new', alert);
+        }
+      }
     }
-  } else {
-    // Normal scan — still push live telemetry (position + online) so the map stays current.
-    droneStatus(drone);
-    pushStats();
   }
+
+  // Always push live telemetry (position + online) so the map stays current, even when no
+  // new alert was raised (normal scan, duplicate, or suppressed-during-dispatch).
+  droneStatus(drone);
+  pushStats();
 
   res.json({ analysis, alert });
 });
@@ -254,6 +284,8 @@ app.post('/api/alerts/:id/escalate', (req, res) => {
     conveyed: note || `${meta(alert.incidentType).label} confirmed by drone police — response requested.`
   };
   db.mainForce().push(record);
+  if (db.mainForce().length > MAX_MAINFORCE)
+    db.state.mainForce = db.mainForce().slice(-MAX_MAINFORCE);
 
   const drone = db.find('drones', alert.droneId);
   // Don't yank a drone off an active dispatch just because an older alert was reviewed.
@@ -306,8 +338,8 @@ app.post('/api/alerts/:id/dismiss', (req, res) => {
 app.post('/api/dispatches', (req, res) => {
   const { lat, lng, address = '', incidentType = 'suspicious_activity', description = '', officer = 'Main Force', radiusKm } =
     req.body || {};
-  if (typeof lat !== 'number' || typeof lng !== 'number')
-    return res.status(400).json({ error: 'lat/lng required' });
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)
+    return res.status(400).json({ error: 'valid lat/lng required' });
 
   const nearby = findNearbyDrones({ lat, lng }, db.drones(), {
     radiusKm: typeof radiusKm === 'number' ? radiusKm : 3
@@ -392,6 +424,11 @@ app.post('/api/dispatches/:id/frame', async (req, res) => {
   const url = await saveImage(image);
   if (!url) return res.status(400).json({ error: 'no image' });
 
+  // Re-validate after the upload await: the dispatch may have been resolved or cleared
+  // (and the drone re-assigned) while the image was uploading — don't attach a stale frame.
+  if (dispatch.status !== 'active' || !db.find('dispatches', dispatch.id))
+    return res.status(409).json({ error: 'dispatch no longer active' });
+
   const frame = {
     id: uid('frame'),
     droneId: drone.id,
@@ -420,6 +457,8 @@ app.post('/api/dispatches/:id/convey', (req, res) => {
 
   const update = { id: uid('upd'), at: new Date().toISOString(), officer, info };
   dispatch.updates.push(update);
+  if (dispatch.updates.length > MAX_UPDATES_PER_DISPATCH)
+    dispatch.updates = dispatch.updates.slice(-MAX_UPDATES_PER_DISPATCH);
 
   const record = {
     id: uid('mf'),
@@ -436,6 +475,8 @@ app.post('/api/dispatches/:id/convey', (req, res) => {
     conveyed: info
   };
   db.mainForce().push(record);
+  if (db.mainForce().length > MAX_MAINFORCE)
+    db.state.mainForce = db.mainForce().slice(-MAX_MAINFORCE);
   db.save();
 
   toPolice('dispatch:updated', dispatch);
@@ -584,6 +625,25 @@ function isMapHost(url) {
   }
 }
 
+// Read a response body but stop after `maxBytes` so a huge page can't exhaust memory.
+async function readCapped(resp, maxBytes) {
+  const reader = resp.body && resp.body.getReader ? resp.body.getReader() : null;
+  if (!reader) return (await resp.text()).slice(0, maxBytes);
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    chunks.push(Buffer.from(value));
+    if (total >= maxBytes) {
+      try { await reader.cancel(); } catch { /* ignore */ }
+      break;
+    }
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 async function resolveMapUrl(url) {
   let c = coordsFromString(url);
   if (c) return c;
@@ -591,14 +651,33 @@ async function resolveMapUrl(url) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const resp = await fetch(url, {
-      redirect: 'follow',
-      signal: ctrl.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SmartDrone/1.0)' }
-    });
-    c = coordsFromString(resp.url); // final URL after following short-link redirects
+    let current = url;
+    let resp = null;
+    // Follow redirects manually so EVERY hop is re-checked against the allowlist —
+    // otherwise a short-link could 3xx-redirect us to an internal/arbitrary host (SSRF).
+    for (let hop = 0; hop < 5; hop++) {
+      if (!isMapHost(current)) return null;
+      resp = await fetch(current, {
+        redirect: 'manual',
+        signal: ctrl.signal,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SmartDrone/1.0)' }
+      });
+      if (resp.status >= 300 && resp.status < 400) {
+        const loc = resp.headers.get('location');
+        if (!loc) break;
+        current = new URL(loc, current).toString(); // resolve relative redirects
+        c = coordsFromString(current);
+        if (c) return c;
+        continue;
+      }
+      break;
+    }
+    if (!resp) return null;
+    c = coordsFromString(resp.url || current);
     if (c) return c;
-    const html = await resp.text();
+    const ctype = (resp.headers.get('content-type') || '').toLowerCase();
+    if (ctype && !/text\/html|text\/plain|xhtml|application\/json/.test(ctype)) return null;
+    const html = await readCapped(resp, 2 * 1024 * 1024); // 2 MB cap
     return coordsFromString(html);
   } finally {
     clearTimeout(timer);
@@ -648,10 +727,36 @@ app.post('/api/admin/clear-images', async (req, res) => {
 
 // ---- sockets -------------------------------------------------------------
 
-// A drone is "taken" if a socket other than this one is in its room.
-function droneTakenByOther(droneId, socketId) {
+// A drone is "taken" if a socket from a DIFFERENT physical device is in its room.
+// The same device reconnecting (its old socket hasn't hit ping-timeout yet) is NOT
+// a conflict — otherwise every reconnect would bounce the phone off its own drone.
+function droneTakenByOther(droneId, socket) {
   const room = io.sockets.adapter.rooms.get(`drone:${droneId}`);
-  return !!(room && [...room].some((sid) => sid !== socketId));
+  if (!room) return false;
+  for (const sid of room) {
+    if (sid === socket.id) continue;
+    const other = io.sockets.sockets.get(sid);
+    const otherDevice = other && other.data ? other.data.deviceId : null;
+    if (otherDevice && socket.data.deviceId && otherDevice === socket.data.deviceId) continue; // same device
+    return true;
+  }
+  return false;
+}
+
+// Police live-view watchers: droneId -> Set of watching police socket ids. Lets us
+// stop a drone's stream when the LAST officer watching it goes away (incl. on a
+// browser-tab close, where no explicit /live/stop is ever sent).
+const liveWatchers = new Map();
+function stopLiveIfUnwatched(droneId) {
+  const set = liveWatchers.get(droneId);
+  if (set && set.size > 0) return; // still being watched
+  const drone = db.find('drones', droneId);
+  if (drone && drone.liveView) {
+    drone.liveView = false;
+    db.save();
+    toDrone(drone.id, 'drone:command', { type: 'livestream_stop' });
+    toPolice('drone:status', drone);
+  }
 }
 // Drone ids that no device is currently controlling.
 function availableDroneIds() {
@@ -670,11 +775,34 @@ io.on('connection', (socket) => {
     socket.emit('stats', stats());
   });
 
-  socket.on('drone:hello', ({ droneId } = {}) => {
+  // Portal opened a live camera feed → register this officer as a watcher.
+  socket.on('police:watch', (payload) => {
+    if (!payload || typeof payload !== 'object' || !payload.droneId) return;
+    const { droneId } = payload;
+    if (!liveWatchers.has(droneId)) liveWatchers.set(droneId, new Set());
+    liveWatchers.get(droneId).add(socket.id);
+  });
+
+  // Portal closed a live camera feed → drop this officer; stop if nobody's left.
+  socket.on('police:unwatch', (payload) => {
+    if (!payload || typeof payload !== 'object' || !payload.droneId) return;
+    const { droneId } = payload;
+    const set = liveWatchers.get(droneId);
+    if (set) {
+      set.delete(socket.id);
+      if (set.size === 0) liveWatchers.delete(droneId);
+    }
+    stopLiveIfUnwatched(droneId);
+  });
+
+  socket.on('drone:hello', (payload) => {
+    if (!payload || typeof payload !== 'object') return; // guard null/garbage payloads
+    const { droneId, deviceId } = payload;
     const drone = db.find('drones', droneId);
     if (!drone) return;
-    // One device per drone: reject if another phone already controls this one.
-    if (droneTakenByOther(droneId, socket.id)) {
+    if (deviceId) socket.data.deviceId = String(deviceId); // stable per-device id (survives reconnects)
+    // One device per drone: reject only if a DIFFERENT device already controls this one.
+    if (droneTakenByOther(droneId, socket)) {
       socket.emit('drone:taken', { droneId, available: availableDroneIds() });
       return;
     }
@@ -722,8 +850,12 @@ io.on('connection', (socket) => {
   });
 
   // Live GPS position from a drone → update the fleet map in real time.
-  socket.on('drone:location', ({ droneId, lat, lng, battery } = {}) => {
-    if (typeof lat !== 'number' || typeof lng !== 'number') return;
+  socket.on('drone:location', (payload) => {
+    if (!payload || typeof payload !== 'object') return; // guard null/garbage payloads
+    const { droneId, lat, lng, battery } = payload;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+    // Ownership: only the device that said hello for this drone may move it.
+    if (socket.data.droneId !== droneId) return;
     const drone = db.find('drones', droneId);
     if (!drone) return;
     drone.lat = lat;
@@ -741,6 +873,15 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    // Police live-view cleanup: drop this socket from every drone it was watching,
+    // and stop any drone whose last watcher just left (tab closed, no /live/stop).
+    for (const [dId, set] of liveWatchers) {
+      if (set.delete(socket.id) && set.size === 0) {
+        liveWatchers.delete(dId);
+        stopLiveIfUnwatched(dId);
+      }
+    }
+
     const droneId = socket.data.droneId;
     if (!droneId) return;
     // Only mark offline if no other socket controls this drone.
@@ -757,6 +898,28 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+// Safety sweep: reconcile "connected" against real socket presence every 10s. If a
+// drone is flagged online but no socket is actually in its room (e.g. a disconnect
+// event was missed), mark it offline so it stops looking dispatchable. Ground truth
+// is room membership, not lastSeen, so an idle-but-live phone is never falsely dropped.
+setInterval(() => {
+  let changed = false;
+  for (const drone of db.drones()) {
+    if (!drone.connected) continue;
+    const room = io.sockets.adapter.rooms.get(`drone:${drone.id}`);
+    if (room && room.size > 0) continue;
+    drone.connected = false;
+    drone.liveView = false;
+    changed = true;
+    toPolice('drone:status', drone);
+  }
+  if (changed) {
+    db.save();
+    pushStats();
+    io.to('drones').emit('fleet:changed');
+  }
+}, 10000).unref();
 
 // ---- start ---------------------------------------------------------------
 

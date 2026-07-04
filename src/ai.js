@@ -163,14 +163,24 @@ async function analyzeGroq(imageBase64, context) {
       }
     ]
   };
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(body)
-  });
+  // Abort a hung Groq request so a single slow API call can't stall the drone's
+  // scan loop (and pile up requests) indefinitely.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  let res;
+  try {
+    res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body),
+      signal: ctrl.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     const t = await res.text();
     throw new Error(`groq ${res.status}: ${t.slice(0, 200)}`);
