@@ -572,6 +572,19 @@ io.on('connection', (socket) => {
     if (drone.liveView) socket.emit('drone:command', { type: 'livestream' });
   });
 
+  // Live GPS position from a drone → update the fleet map in real time.
+  socket.on('drone:location', ({ droneId, lat, lng } = {}) => {
+    if (typeof lat !== 'number' || typeof lng !== 'number') return;
+    const drone = db.find('drones', droneId);
+    if (!drone) return;
+    drone.lat = lat;
+    drone.lng = lng;
+    drone.connected = true;
+    drone.lastSeen = new Date().toISOString();
+    db.save();
+    toPolice('drone:status', drone);
+  });
+
   socket.on('disconnect', () => {
     const droneId = socket.data.droneId;
     if (!droneId) return;

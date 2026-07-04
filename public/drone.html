@@ -78,13 +78,13 @@
 
     <div class="toggle-row">
       <div>
-        <div>Use my GPS location</div>
-        <div class="small">Otherwise the drone's assigned sector location is used</div>
+        <div>Live GPS tracking</div>
+        <div class="small" id="gpsStatus">Streams this drone's real location to the police map. Off = assigned sector location.</div>
       </div>
-      <input type="checkbox" id="gpsChk" style="width:auto" />
+      <input type="checkbox" id="gpsChk" checked style="width:auto" />
     </div>
 
-    <p class="small" style="margin-top:14px">💡 Tip for the demo: no API key needed — pick a scenario above (Fire, Traffic, etc.) and press <b>Scan now</b>. With a Claude API key set, it analyses the real camera image instead.</p>
+    <p class="small" style="margin-top:14px">💡 Tip for the demo: no API key needed — pick a scenario above (Fire, Traffic, etc.) and press <b>Scan now</b>. With a Groq/Claude API key set, it analyses the real camera image instead.</p>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

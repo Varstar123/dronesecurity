@@ -13,6 +13,7 @@ const st = {
   liveTimer: null, // on-demand live view requested by police
   dispatch: null, // { dispatchId, address, droneId }
   gpsWatch: null,
+  lastLocSent: 0, // throttle for live location updates
   busy: false,
   awaitingReview: false // an alert was raised and is waiting for police review
 };
@@ -42,12 +43,13 @@ async function init() {
   $('gpsChk').onchange = toggleGps;
 
   wireSocket();
+  toggleGps(); // start live GPS tracking (checkbox is on by default)
 }
 
 function selectDrone(id) {
   st.droneId = id;
   const d = st.drones.find((x) => x.id === id);
-  if (d && !$('gpsChk').checked) st.coords = { lat: d.lat, lng: d.lng };
+  if (d) st.coords = { lat: d.lat, lng: d.lng }; // sector baseline; live GPS overrides
   socket.emit('drone:hello', { droneId: id });
   setStatus('mon', d ? `Monitoring · ${d.sector}` : 'Monitoring');
 }
@@ -240,20 +242,51 @@ function stopLive() {
   $('liveChip').classList.remove('show');
 }
 
-// ---------- gps ----------
+// ---------- gps (live location tracking) ----------
+function useSeedCoords() {
+  const d = st.drones.find((x) => x.id === st.droneId);
+  if (d) st.coords = { lat: d.lat, lng: d.lng };
+}
+
+// Push the drone's current position to the police map (throttled), even when
+// it isn't scanning — this is what makes the map track the drone live.
+function sendLocation() {
+  const now = Date.now();
+  if (now - st.lastLocSent < 2500) return;
+  st.lastLocSent = now;
+  socket.emit('drone:location', { droneId: st.droneId, lat: st.coords.lat, lng: st.coords.lng });
+}
+
 function toggleGps() {
+  const status = $('gpsStatus');
   if ($('gpsChk').checked) {
-    if (!navigator.geolocation) { alert('Geolocation not available'); $('gpsChk').checked = false; return; }
+    if (!navigator.geolocation) {
+      status.textContent = 'GPS not supported on this device — using sector location.';
+      $('gpsChk').checked = false;
+      return;
+    }
+    status.textContent = '📍 acquiring GPS…';
     st.gpsWatch = navigator.geolocation.watchPosition(
-      (pos) => { st.coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
-      (err) => { console.warn('gps', err.message); },
-      { enableHighAccuracy: true, maximumAge: 5000 }
+      (pos) => {
+        st.coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        status.textContent = `📍 live: ${st.coords.lat.toFixed(5)}, ${st.coords.lng.toFixed(5)}`;
+        sendLocation();
+      },
+      (err) => {
+        status.textContent = `GPS unavailable (${err.message}) — using sector location.`;
+        $('gpsChk').checked = false;
+        if (st.gpsWatch != null) navigator.geolocation.clearWatch(st.gpsWatch);
+        st.gpsWatch = null;
+        useSeedCoords();
+      },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
     );
   } else {
     if (st.gpsWatch != null) navigator.geolocation.clearWatch(st.gpsWatch);
     st.gpsWatch = null;
-    const d = st.drones.find((x) => x.id === st.droneId);
-    if (d) st.coords = { lat: d.lat, lng: d.lng };
+    useSeedCoords();
+    sendLocation();
+    status.textContent = 'GPS off — using assigned sector location.';
   }
 }
 
