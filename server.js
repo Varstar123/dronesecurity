@@ -26,7 +26,7 @@ const MAX_FRAMES_PER_DISPATCH = 16;
 // Police authorization key required to clear captured images (change via .env).
 const CLEAR_SECRET = process.env.CLEAR_SECRET || 'police2026';
 // A drone counts as "reached the location" within this distance of the target.
-const ARRIVAL_RADIUS_KM = 0.2;
+const ARRIVAL_RADIUS_KM = 0.02; // 20 metres
 
 const app = express();
 const server = http.createServer(app);
