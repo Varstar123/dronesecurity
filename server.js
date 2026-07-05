@@ -105,6 +105,15 @@ app.post('/api/auth/photo', requireAuth, async (req, res) => {
     res.json(publicOfficer(o));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// A logged-in officer saves their own theme preference (follows them across devices).
+app.post('/api/auth/theme', requireAuth, async (req, res) => {
+  const { theme } = req.body || {};
+  if (typeof theme !== 'string' || theme.length > 40) return res.status(400).json({ error: 'invalid theme' });
+  try {
+    await updateOfficer(req.session.id, { theme });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // ---- API access guard: everything under /api requires a login EXCEPT the shared
 // endpoints the (unauthenticated) drone app needs, and the auth endpoints themselves.

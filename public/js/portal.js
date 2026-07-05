@@ -6,11 +6,13 @@ const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: n
 
 // ---------- boot ----------
 init();
+let themeCtl;
 async function init() {
   setupSidebar();
   setupPhotoEdit(); // let the officer change their own avatar
-  loadOfficer(); // fill the sidebar with the signed-in officer + admin link
-  initThemePicker('themePicker');
+  // Persist theme changes to the officer's account so their choice follows them.
+  themeCtl = initThemePicker('themePicker', (id) => { api('/api/auth/theme', { method: 'POST', body: { theme: id } }).catch(() => {}); });
+  loadOfficer(); // fill the sidebar with the signed-in officer + admin link + saved theme
   setupFlagWave();
   await loadConfig();
   const badge = document.getElementById('aiBadge');
@@ -271,6 +273,7 @@ async function loadOfficer() {
   let me;
   try { me = await api('/api/auth/me'); }
   catch { location.href = '/login'; return; }
+  if (me.theme && themeCtl) themeCtl.apply(me.theme); // apply this officer's saved theme
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('sbName', me.name || me.username);
   set('sbId', me.badgeId || '—');
