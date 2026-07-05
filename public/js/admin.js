@@ -14,7 +14,8 @@ async function init() {
   $('logoutBtn').onclick = logout;
   $('addBtn').onclick = () => openEditor(null);
   $('editCancel').onclick = closeEditor;
-  $('editBack').onclick = (e) => { if (e.target.id === 'editBack') closeEditor(); };
+  // Intentionally NO backdrop-click-to-close — the editor only closes via Cancel/Save,
+  // so a stray click outside can't discard a half-filled officer form.
   $('officerForm').addEventListener('submit', saveOfficer);
   await load();
 }
