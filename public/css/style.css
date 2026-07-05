@@ -331,6 +331,22 @@ details.adv[open] summary { color: var(--text); }
 .glow-frame > .cam-wrap { margin: 0; border: none; border-radius: 16px; box-shadow: none; }
 @keyframes gb-spin { to { --gb-angle: 360deg; } }
 
+/* Chunky "pop" press-down button — the emergency dispatch CTA */
+.btn-pop {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  font-family: inherit; font-weight: 800; font-size: 14.5px; text-transform: uppercase; letter-spacing: .6px; line-height: 1;
+  color: #fff; padding: 16px 22px; border-radius: 14px; cursor: pointer;
+  background: linear-gradient(180deg, #df4757, #c22c3b);
+  border: 2px solid #83232f;
+  box-shadow: 0 8px 0 0 #7a1b28, 0 12px 20px -6px rgba(0, 0, 0, .55);
+  transition: transform .15s cubic-bezier(0, 0, .58, 1), box-shadow .15s cubic-bezier(0, 0, .58, 1), background .15s ease;
+  margin-bottom: 8px;
+}
+.btn-pop:hover { background: linear-gradient(180deg, #e85463, #cf3341); transform: translateY(3px); box-shadow: 0 5px 0 0 #7a1b28, 0 9px 16px -6px rgba(0, 0, 0, .55); }
+.btn-pop:active { transform: translateY(8px); box-shadow: 0 0 0 0 #7a1b28, 0 3px 8px -4px rgba(0, 0, 0, .55); }
+.btn-pop:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: 0 8px 0 0 #7a1b28; }
+.btn-pop .lucide { width: 18px; height: 18px; margin: 0; }
+
 /* Premium fleet cards */
 .fleet-card {
   background: linear-gradient(180deg, #16304a, #101f31); border: 1px solid var(--line);
