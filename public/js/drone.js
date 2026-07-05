@@ -215,23 +215,26 @@ function captureFrame(measureBrightness = false) {
 }
 
 // Capture a JPEG as a raw ArrayBuffer (for binary live streaming — no base64 bloat).
-function captureBlob(cb) {
+// Smaller + lower quality than the analysis frame: a live feed wants low latency, not
+// detail, so keep each frame tiny (~10-18 KB) to move fast over a phone's uplink.
+function captureBlob(cb, w = 480, q = 0.5) {
   const v = $('video');
   if (!v.videoWidth) return cb(null);
-  const w = 640;
-  const h = Math.round((v.videoHeight / v.videoWidth) * w) || 480;
+  const h = Math.round((v.videoHeight / v.videoWidth) * w) || Math.round(w * 0.75);
   const c = $('canvas');
   c.width = w; c.height = h;
   c.getContext('2d').drawImage(v, 0, 0, w, h);
   c.toBlob((blob) => {
     if (!blob) return cb(null);
     blob.arrayBuffer().then(cb).catch(() => cb(null));
-  }, 'image/jpeg', 0.55);
+  }, 'image/jpeg', q);
 }
 
 // ---------- monitoring scan ----------
 async function scan() {
-  if (!st.stream || st.busy || st.dispatch || st.awaitingReview) return;
+  // Pause auto-scan while the officer is watching live — the heavy analysis capture +
+  // upload would otherwise stutter the live feed every few seconds. Resumes on close.
+  if (!st.stream || st.busy || st.dispatch || st.awaitingReview || st.liveRunning) return;
   const image = captureFrame(true); // auto-scan needs the brightness reading
   if (!image) return;
   // On real monitoring (Auto scenario), skip near-black frames — a covered/dark
@@ -365,23 +368,22 @@ function startLive() {
   if (st.liveRunning) return;
   st.liveRunning = true;
   const liveDroneId = st.droneId; // keep streaming this drone even if selection changes
-  const TARGET_MS = 120; // ~8 fps ceiling; binary over the socket is cheap, so aim higher
-  const schedule = (t0) => {
-    if (!st.liveRunning) return;
-    const wait = t0 ? Math.max(0, TARGET_MS - (performance.now() - t0)) : TARGET_MS;
-    st.liveTimer = setTimeout(tick, wait);
-  };
+  const INTERVAL = 80; // capture cadence (~12 fps ceiling)
+  const CAP = 3; // frames allowed in flight before we skip — decouples fps from round-trip
+  //             latency (strict 1-at-a-time capped us at one frame per RTT = choppy).
+  let inFlight = 0;
   const tick = () => {
     if (!st.liveRunning) return;
-    if (!st.stream) return schedule();
-    const t0 = performance.now();
-    captureBlob((buf) => {
-      if (!st.liveRunning) return;
-      if (!buf) return schedule();
-      // Emit as binary over the WebSocket; the ack releases the next frame (backpressure),
-      // so slow links throttle themselves instead of piling up.
-      socket.emit('drone:liveframe', liveDroneId, buf, () => schedule(t0));
-    });
+    if (st.stream && inFlight < CAP) {
+      inFlight++;
+      captureBlob((buf) => {
+        if (!st.liveRunning || !buf) { inFlight = Math.max(0, inFlight - 1); return; }
+        // socket.timeout so the ack ALWAYS fires (on receipt or after 1.5s) — inFlight
+        // can never get stuck if a frame is dropped.
+        socket.timeout(1500).emit('drone:liveframe', liveDroneId, buf, () => { inFlight = Math.max(0, inFlight - 1); });
+      });
+    }
+    st.liveTimer = setTimeout(tick, INTERVAL);
   };
   tick();
 }
