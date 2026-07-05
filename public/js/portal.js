@@ -15,9 +15,6 @@ async function init() {
   loadOfficer(); // fill the sidebar with the signed-in officer + admin link + saved theme
   setupFlagWave();
   await loadConfig();
-  const badge = document.getElementById('aiBadge');
-  badge.textContent = `AI: ${CONFIG.aiLabel || 'Standby'}`;
-  badge.className = 'badge ' + (CONFIG.aiMode === 'mock' ? 'mock' : 'live');
 
   const sel = document.getElementById('d_type');
   sel.innerHTML = Object.entries(CONFIG.incidentTypes)

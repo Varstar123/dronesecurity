@@ -40,9 +40,6 @@ init();
 async function init() {
   initThemePicker('themePicker');
   await loadConfig();
-  const badge = $('aiBadge');
-  badge.textContent = `AI: ${CONFIG.aiLabel || 'Standby'}`;
-  badge.className = 'badge ' + (CONFIG.aiMode === 'mock' ? 'mock' : 'live');
 
   // Scenario override (only relevant when no live AI provider is configured;
   // a real provider analyses the actual camera image, so hide it then).
