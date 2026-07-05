@@ -239,7 +239,22 @@ label.field { display: block; font-size: 12px; color: var(--muted); margin: 10px
 .two-col { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
 .two-col > .form-card { flex: 0 1 360px; max-width: 100%; }
 .two-col > .disp-col { flex: 1 1 400px; min-width: 0; } /* takes the rest, can shrink, wraps below when tight */
-.form-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+.form-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+/* dispatch form: clean vertical rhythm + comfortable fields */
+.form-card > p.small { margin: 0 0 2px; line-height: 1.5; }
+.form-card label.field {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .7px; font-weight: 700;
+  color: #9fb4cc; margin: 22px 0 9px;
+}
+.form-card .field-group { display: flex; flex-direction: column; gap: 10px; }
+.form-card input, .form-card select, .form-card textarea { padding: 11px 13px; border-radius: 10px; margin: 0; }
+.form-card textarea { min-height: 74px; }
+.form-card ::placeholder { color: #6d829b; opacity: 1; }
+.form-card input:focus, .form-card select:focus, .form-card textarea:focus {
+  outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(22, 176, 166, .16);
+}
+.preset-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.preset-row .btn { font-size: 12px; padding: 7px 11px; }
 .disp-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 details.adv { border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; background: #0d1c2b; }
 details.adv summary { cursor: pointer; font-size: 12px; color: var(--muted); list-style: none; user-select: none; }
