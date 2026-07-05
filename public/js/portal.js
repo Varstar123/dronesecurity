@@ -451,7 +451,7 @@ function dispatchCard(d) {
       <span class="meta">${esc(d.address || d.lat.toFixed(4) + ', ' + d.lng.toFixed(4))} · ${timeAgo(d.timestamp)}</span>
     </div>
     ${d.description ? `<div class="interp" style="margin-top:6px">“${esc(d.description)}”</div>` : ''}
-    <div class="row" style="margin-top:8px; gap:6px; align-items:center">${droneRows}</div>
+    <div class="row" style="margin-top:8px; gap:8px; align-items:center; display:flex; flex-wrap:wrap">${droneRows}</div>
     <div class="footage">${tiles}</div>
     ${updates}
     ${active ? `<div style="margin-top:14px">
