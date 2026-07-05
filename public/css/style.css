@@ -178,7 +178,7 @@ h1 .lucide, h3 .lucide, .section-title .lucide { margin-right: 6px; }
 .sb-spacer { flex: 1; min-height: 18px; }
 .sb-foot { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; border-top: 1px solid var(--line); }
 .sb-flabel { font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 700; }
-.sb-logout { width: 100%; justify-content: center; }
+.sb-logout { width: 100%; justify-content: center; text-decoration: none; }
 .sb-logout .lucide { margin-right: 6px; }
 .sidebar .theme-picker { width: 100%; }
 .sidebar .theme-btn { width: 100%; }
