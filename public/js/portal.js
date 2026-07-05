@@ -193,23 +193,77 @@ function setupPhotoEdit() {
     }
   };
 }
-function resizeToAvatar(file, size, quality) {
+function loadImage(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const c = document.createElement('canvas');
-      c.width = size; c.height = size;
-      const ctx = c.getContext('2d');
-      const scale = Math.max(size / img.width, size / img.height); // cover
-      const w = img.width * scale, h = img.height * scale;
-      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
-      resolve(c.toDataURL('image/jpeg', quality));
-    };
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('that file is not a valid image')); };
     img.src = url;
   });
+}
+
+// Lazily load the pico.js face detector + its cascade (only when a photo is edited).
+let _picoClassify = null;
+function ensurePico() {
+  if (_picoClassify) return _picoClassify;
+  _picoClassify = (async () => {
+    if (!window.pico) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = '/vendor/pico.js';
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('face detector unavailable'));
+        document.head.appendChild(s);
+      });
+    }
+    const buf = await fetch('/vendor/facefinder').then((r) => r.arrayBuffer());
+    return window.pico.unpack_cascade(new Int8Array(buf));
+  })().catch((e) => { _picoClassify = null; throw e; });
+  return _picoClassify;
+}
+
+// Detect the strongest face and return its centre + diameter in ORIGINAL image pixels.
+function detectFace(img, classify) {
+  const scale = Math.min(1, 640 / Math.max(img.width, img.height)); // detect at ≤640px for speed
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  const cnv = document.createElement('canvas');
+  cnv.width = w; cnv.height = h;
+  const ctx = cnv.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  const rgba = ctx.getImageData(0, 0, w, h).data;
+  const gray = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++)
+    gray[i] = (0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2]) | 0;
+  const image = { pixels: gray, nrows: h, ncols: w, ldim: w };
+  const params = { shiftfactor: 0.1, minsize: Math.round(Math.min(w, h) * 0.12), maxsize: Math.min(w, h), scalefactor: 1.1 };
+  let dets = window.pico.run_cascade(image, classify, params);
+  dets = window.pico.cluster_detections(dets, 0.2); // [row, col, scale, quality]
+  let best = null;
+  for (const d of dets) if (d[3] > 40 && (!best || d[3] > best[3])) best = d;
+  return best ? { cx: best[1] / scale, cy: best[0] / scale, size: best[2] / scale } : null;
+}
+
+// Resize an uploaded image to a square avatar, AUTO-CENTERING the detected face.
+async function resizeToAvatar(file, size, quality) {
+  const img = await loadImage(file);
+  let cx = img.width / 2, cy = img.height / 2, crop = Math.min(img.width, img.height);
+  try {
+    const face = detectFace(img, await ensurePico());
+    if (face) {
+      cx = face.cx;
+      cy = face.cy - face.size * 0.1;               // bias up slightly to keep the forehead/hair
+      crop = Math.min(face.size * 1.9, img.width, img.height); // head + a little margin
+    }
+  } catch { /* detector/cascade missing or no face → plain centre crop */ }
+  let sx = cx - crop / 2, sy = cy - crop / 2;
+  sx = Math.max(0, Math.min(sx, img.width - crop));
+  sy = Math.max(0, Math.min(sy, img.height - crop));
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  c.getContext('2d').drawImage(img, sx, sy, crop, crop, 0, 0, size, size);
+  return c.toDataURL('image/jpeg', quality);
 }
 
 // Load the signed-in officer into the sidebar; show an admin link for admins.
