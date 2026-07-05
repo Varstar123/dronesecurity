@@ -127,7 +127,6 @@ h1 .lucide, h3 .lucide, .section-title .lucide { margin-right: 6px; }
   .drone-top .spacer { display: none; }
   .drone-top .topbar-title { flex: 1; }
   .drone-top h1 { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .drone-top #aiBadge { display: none; }
   .drone-top .navlink-txt { display: none; }
   .drone-top .navlink { padding: 8px 10px; }
   .drone-top .navlink .lucide { margin-right: 0; }
