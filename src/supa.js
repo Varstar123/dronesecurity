@@ -133,3 +133,46 @@ export async function clearImages() {
   }
   return names.length;
 }
+
+// ---- officers (police login accounts) ------------------------------------
+const offToRow = (o) => ({
+  id: o.id, username: o.username, password_hash: o.passwordHash, name: o.name,
+  badge_id: o.badgeId, station: o.station, photo: o.photo, role: o.role, active: o.active, created_at: o.createdAt
+});
+const offFromRow = (r) => r && ({
+  id: r.id, username: r.username, passwordHash: r.password_hash, name: r.name,
+  badgeId: r.badge_id, station: r.station, photo: r.photo, role: r.role, active: r.active, createdAt: r.created_at
+});
+export async function officersList() {
+  const { data, error } = await sb.from('officers').select('*').order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []).map(offFromRow);
+}
+export async function officerByUsername(u) {
+  const { data, error } = await sb.from('officers').select('*').ilike('username', u).limit(1);
+  if (error) throw new Error(error.message);
+  return data && data[0] ? offFromRow(data[0]) : null;
+}
+export async function officerById(id) {
+  const { data, error } = await sb.from('officers').select('*').eq('id', id).limit(1);
+  if (error) throw new Error(error.message);
+  return data && data[0] ? offFromRow(data[0]) : null;
+}
+export async function officerCreate(o) {
+  const { error } = await sb.from('officers').insert(offToRow(o));
+  if (error) throw new Error(error.message);
+  return o;
+}
+export async function officerUpdate(id, patch) {
+  const map = { username: 'username', passwordHash: 'password_hash', name: 'name', badgeId: 'badge_id', station: 'station', photo: 'photo', role: 'role', active: 'active' };
+  const row = {};
+  for (const k in patch) if (map[k]) row[map[k]] = patch[k];
+  const { data, error } = await sb.from('officers').update(row).eq('id', id).select('*');
+  if (error) throw new Error(error.message);
+  return data && data[0] ? offFromRow(data[0]) : null;
+}
+export async function officerRemove(id) {
+  const { error } = await sb.from('officers').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+  return true;
+}

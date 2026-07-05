@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in · Police Control Center</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c2138'/><path d='M16 5 25 8.5 25 15 C25 21 21 25 16 27 C11 25 7 21 7 15 L7 8.5 Z' fill='%2316b0a6'/><path d='M12.3 16 15 18.7 19.7 13.3' fill='none' stroke='%230c2138' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script>try{var t=localStorage.getItem('sd-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body class="auth-body">
+  <div class="auth-card">
+    <div class="auth-logo"><i data-lucide="radar"></i></div>
+    <h1>Police Control Center</h1>
+    <p class="auth-sub">Smart City Drone Security System</p>
+    <form id="loginForm" class="auth-form" autocomplete="on">
+      <label class="field">Username</label>
+      <input id="username" name="username" autocomplete="username" placeholder="e.g. admin" autofocus />
+      <label class="field">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+      <div class="auth-error" id="authError"></div>
+      <button class="btn primary auth-btn" id="loginBtn" type="submit"><i data-lucide="log-in"></i> Sign in</button>
+    </form>
+    <p class="auth-foot">Group 17 · GEC Kozhikode</p>
+  </div>
+
+  <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
+  <script>window.addEventListener('DOMContentLoaded', () => window.lucide && lucide.createIcons());</script>
+  <script type="module" src="/js/login.js"></script>
+</body>
+</html>

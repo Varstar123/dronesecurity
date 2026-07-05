@@ -74,6 +74,21 @@ create table if not exists public.main_force (
   conveyed      text
 );
 
+-- ── Officers (police login accounts for the portal + admin module) ────────
+create table if not exists public.officers (
+  id            text primary key,
+  username      text unique not null,
+  password_hash text not null,        -- bcrypt hash, never the plain password
+  name          text,
+  badge_id      text,
+  station       text,
+  photo         text,                 -- URL or data URI (optional)
+  role          text default 'officer',  -- officer | admin
+  active        boolean default true,
+  created_at    timestamptz default now()
+);
+create index if not exists officers_username_idx on public.officers (lower(username));
+
 -- Helpful for showing the newest first in the dashboard.
 create index if not exists alerts_ts_idx      on public.alerts (timestamp desc);
 create index if not exists dispatches_ts_idx  on public.dispatches (timestamp desc);
