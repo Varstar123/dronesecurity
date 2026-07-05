@@ -59,7 +59,8 @@ function wireSocket() {
   socket.on('alert:new', (a) => { refreshAlerts(); toast(a); beep(); });
   socket.on('alert:updated', () => refreshAlerts());
   socket.on('dispatch:new', (d) => { refreshDispatches(); toast({ incidentType: d.incidentType, title: 'Drones dispatched', interpretation: `${d.assignedDrones.length} drones surrounding ${d.address || 'target'}`, sector: d.address }); });
-  socket.on('dispatch:frame', onFrame);
+  socket.on('dispatch:frame', onFrame); // legacy base64 path (fallback)
+  socket.on('dispatch:frame:bin', onFrameBin); // fast binary path
   socket.on('dispatch:updated', () => refreshDispatches());
   socket.on('dispatch:arrived', (a) => {
     toast({ incidentType: 'normal', title: `${a.droneName} reached the location`, sector: 'Dispatch', interpretation: 'Drone in position — live camera available for monitoring.' });
@@ -110,6 +111,27 @@ function onFrame(p) {
   const img = document.querySelector(sel);
   if (img) { img.src = p.image; return; } // steady state — one cheap swap
   // First frame for this tile (still the "surrounding…" placeholder) → build the card once.
+  const d = state.dispatches.find((x) => x.id === p.dispatchId);
+  if (d) renderDispatches(); else refreshDispatches();
+}
+// Binary dispatch frame: render the tile via an object URL, revoking the previous one
+// for that drone so a long dispatch doesn't leak memory.
+function onFrameBin(p) {
+  if (!p || !p.dispatchId || !p.droneId || !p.buf) return;
+  const key = p.dispatchId + '__' + p.droneId;
+  state.liveFrames = state.liveFrames || {};
+  const prev = state.liveFrames[key];
+  const url = URL.createObjectURL(new Blob([p.buf], { type: 'image/jpeg' }));
+  state.liveFrames[key] = url;
+  const sel = 'img[data-feed="' + (window.CSS && CSS.escape ? CSS.escape(key) : key) + '"]';
+  const img = document.querySelector(sel);
+  if (img) {
+    img.src = url;
+    if (typeof prev === 'string' && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+    return;
+  }
+  if (typeof prev === 'string' && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+  // First frame for this tile (still the placeholder) → build the card once; it reads the URL.
   const d = state.dispatches.find((x) => x.id === p.dispatchId);
   if (d) renderDispatches(); else refreshDispatches();
 }
@@ -767,16 +789,26 @@ function setupLiveModal() {
 async function openLive(id) {
   const d = state.drones.find((x) => x.id === id);
   state.liveDroneId = id;
+  state.liveGotFrame = false;
   document.getElementById('liveTitle').textContent = `Live camera — ${d ? d.name : id}`;
   const img = document.getElementById('liveImg');
   img.style.display = 'none';
   img.removeAttribute('src');
   const wait = document.getElementById('liveWait');
   wait.style.display = '';
-  wait.textContent = "Waiting for the drone's live feed… (its camera must be on)";
+  wait.classList.remove('cam-off-msg');
+  wait.textContent = "Connecting to the drone's live camera…";
   document.getElementById('liveMeta').textContent = '';
   document.getElementById('liveBack').classList.add('open');
   socket.emit('police:watch', { droneId: id }); // so the server stops the feed if this tab closes
+  // If no frame has streamed after a few seconds, the drone's camera is almost certainly off.
+  clearTimeout(state.liveWaitTimer);
+  state.liveWaitTimer = setTimeout(() => {
+    if (!state.liveGotFrame && state.liveDroneId === id) {
+      wait.classList.add('cam-off-msg');
+      wait.innerHTML = `<b>Camera is off</b><br>${esc(d ? d.name : 'This drone')} isn't streaming — ask the operator to start its camera.`;
+    }
+  }, 3500);
   try {
     await api(`/api/drones/${id}/live/start`, { method: 'POST' });
   } catch (e) {
@@ -787,6 +819,7 @@ async function closeLive() {
   const id = state.liveDroneId;
   document.getElementById('liveBack').classList.remove('open');
   state.liveDroneId = null;
+  clearTimeout(state.liveWaitTimer);
   const img = document.getElementById('liveImg');
   if (img.dataset.objurl) { URL.revokeObjectURL(img.dataset.objurl); delete img.dataset.objurl; }
   img.removeAttribute('src');
@@ -797,6 +830,8 @@ async function closeLive() {
 }
 function onLiveFrame({ droneId, image, at }) {
   if (droneId !== state.liveDroneId) return;
+  state.liveGotFrame = true;
+  clearTimeout(state.liveWaitTimer);
   const img = document.getElementById('liveImg');
   img.src = image;
   img.style.display = 'block';
@@ -807,6 +842,8 @@ function onLiveFrame({ droneId, image, at }) {
 // previous one each frame so the modal doesn't leak memory during a long viewing.
 function onLiveFrameBin({ droneId, buf, at }) {
   if (droneId !== state.liveDroneId || !buf) return;
+  state.liveGotFrame = true;
+  clearTimeout(state.liveWaitTimer);
   const img = document.getElementById('liveImg');
   const url = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }));
   const prev = img.dataset.objurl;

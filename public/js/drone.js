@@ -315,35 +315,26 @@ function enterDispatch(cmd) {
   startStreaming();
 }
 
-// Self-scheduling loop (not setInterval): the next frame is only queued AFTER the
-// previous send completes, so slow links can't pile up in-flight POSTs and lag out.
+// Binary dispatch footage over the WebSocket — same smooth path as the live camera:
+// tiny frames + a few in flight (so fps isn't gated by round-trip latency). The drone
+// leaves dispatch mode on the server's "resume" command, not on a send error.
 function startStreaming() {
   if (st.streamRunning) return; // already looping; it reads st.dispatch each tick
   st.streamRunning = true;
-  const TARGET_MS = 400; // ~2.5 fps ceiling; real rate is gated by send latency
-  const tick = async () => {
+  const INTERVAL = 90; // ~11 fps capture cadence
+  const CAP = 3; // frames allowed in flight before we skip
+  let inFlight = 0;
+  const tick = () => {
     if (!st.streamRunning) return;
-    let wait = TARGET_MS;
-    if (st.dispatch && st.stream) {
-      const image = captureFrame();
-      if (image) {
-        const t0 = performance.now();
-        try {
-          await api(`/api/dispatches/${st.dispatch.dispatchId}/frame`, {
-            method: 'POST',
-            body: { droneId: st.dispatch.droneId, image }
-          });
-        } catch (e) {
-          if (String(e.message).includes('not active') || String(e.message).includes('unknown')) {
-            st.streamRunning = false;
-            exitDispatch();
-            return;
-          }
-        }
-        wait = Math.max(0, TARGET_MS - (performance.now() - t0));
-      }
+    if (st.dispatch && st.stream && inFlight < CAP) {
+      inFlight++;
+      captureBlob((buf) => {
+        if (!st.streamRunning || !st.dispatch || !buf) { inFlight = Math.max(0, inFlight - 1); return; }
+        socket.timeout(1500).emit('drone:dispframe', st.dispatch.dispatchId, st.dispatch.droneId, buf,
+          () => { inFlight = Math.max(0, inFlight - 1); });
+      });
     }
-    if (st.streamRunning) st.streamTimer = setTimeout(tick, wait);
+    st.streamTimer = setTimeout(tick, INTERVAL);
   };
   tick();
 }
