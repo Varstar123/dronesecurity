@@ -163,6 +163,47 @@ h1 .lucide, h3 .lucide, .section-title .lucide { margin-right: 6px; }
 
 .empty { color: var(--muted); font-style: italic; padding: 24px 4px; }
 
+/* ---------- alerts panel: pending / reviewed as separate cards ---------- */
+.alert-section {
+  max-width: 920px;
+  background: rgba(255, 255, 255, .015);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px 18px 16px;
+  margin-bottom: 22px;
+}
+.alert-section:last-child { margin-bottom: 0; }
+.alert-section .alert-list { max-width: none; }
+
+/* Centered, monospace glitch-ripple empty state (see js/ascii-ripple.js).
+   Monospace keeps the box-drawing scramble chars from shifting the layout. */
+.empty.ripple-empty {
+  font-family: 'Consolas', ui-monospace, 'Courier New', monospace;
+  font-style: normal;
+  text-align: center;
+  letter-spacing: .5px;
+  padding: 34px 4px;
+  white-space: pre-wrap;
+  cursor: default;
+  user-select: none;
+  transition: color .2s ease, text-shadow .2s ease;
+}
+.empty.ripple-empty.as {
+  color: var(--teal);
+  text-shadow: 0 0 12px rgba(22, 176, 166, .35);
+}
+
+/* Visually hidden but exposed to screen readers (see js/ascii-ripple.js). */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---------- alert cards (thumbnail + expand-on-tap accordion) ---------- */
 .alert-list { display: flex; flex-direction: column; gap: 12px; max-width: 880px; }
 .alert-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; transition: border-color .15s ease; }

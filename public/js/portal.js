@@ -1,4 +1,5 @@
 import { api, esc, timeAgo, fmtTime, loadConfig, CONFIG, incidentMeta, SEV_CLASS, icon, incidentIcon, refreshIcons } from '/js/common.js';
+import { attachAsciiRipple } from '/js/ascii-ripple.js';
 
 const socket = io();
 const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: null, liveDroneId: null };
@@ -181,8 +182,13 @@ function renderAlerts() {
   const reviewed = state.alerts.filter((a) => a.status !== 'pending_review');
   const p = document.getElementById('alertsPending');
   const h = document.getElementById('alertsHistory');
-  p.innerHTML = pending.length ? pending.map((a) => alertCard(a, false)).join('') : `<div class="empty">No pending alerts. Drones are monitoring…</div>`;
-  h.innerHTML = reviewed.length ? reviewed.map((a) => alertCard(a, true)).join('') : `<div class="empty">Nothing reviewed yet.</div>`;
+  p.innerHTML = pending.length ? pending.map((a) => alertCard(a, false)).join('') : `<div class="empty ripple-empty">No pending alerts. Drones are monitoring…</div>`;
+  h.innerHTML = reviewed.length ? reviewed.map((a) => alertCard(a, true)).join('') : `<div class="empty ripple-empty">Nothing reviewed yet.</div>`;
+  // Give the two empty-state messages the glitch-ripple effect (self-running).
+  for (const wrap of [p, h]) {
+    const empty = wrap.querySelector('.ripple-empty');
+    if (empty) attachAsciiRipple(empty, { auto: true });
+  }
   const cab = document.getElementById('clearAlertsBtn');
   if (cab) cab.style.display = reviewed.length ? '' : 'none';
   for (const wrap of [p, h])
