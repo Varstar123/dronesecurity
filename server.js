@@ -907,6 +907,16 @@ io.on('connection', (socket) => {
     }
   });
 
+  // On-demand live camera over the WebSocket as BINARY (no HTTP + no base64 bloat) —
+  // far lower per-frame latency than POSTing frames, so the modal feed is smooth.
+  socket.on('drone:liveframe', (droneId, buf, ack) => {
+    if (typeof ack === 'function') ack(); // release the drone's backpressure immediately
+    if (socket.data.droneId !== droneId) return; // only the controlling device may stream it
+    const drone = db.find('drones', droneId);
+    if (!drone || !drone.liveView || !buf) return; // nobody watching → drop
+    io.to('police').emit('live:frame:bin', { droneId, buf, at: new Date().toISOString() });
+  });
+
   socket.on('disconnect', () => {
     // Police live-view cleanup: drop this socket from every drone it was watching,
     // and stop any drone whose last watcher just left (tab closed, no /live/stop).

@@ -68,7 +68,8 @@ function wireSocket() {
   });
   socket.on('dispatch:resolved', () => { refreshDispatches(); refreshDrones(); });
   socket.on('mainforce:new', () => refreshMF());
-  socket.on('live:frame', onLiveFrame);
+  socket.on('live:frame', onLiveFrame); // legacy base64 path (kept as a fallback)
+  socket.on('live:frame:bin', onLiveFrameBin); // fast binary path
   socket.on('refresh', () => { refreshDrones(); refreshAlerts(); refreshDispatches(); refreshMF(); });
 }
 
@@ -786,6 +787,9 @@ async function closeLive() {
   const id = state.liveDroneId;
   document.getElementById('liveBack').classList.remove('open');
   state.liveDroneId = null;
+  const img = document.getElementById('liveImg');
+  if (img.dataset.objurl) { URL.revokeObjectURL(img.dataset.objurl); delete img.dataset.objurl; }
+  img.removeAttribute('src');
   if (id) {
     socket.emit('police:unwatch', { droneId: id });
     try { await api(`/api/drones/${id}/live/stop`, { method: 'POST' }); } catch (e) {}
@@ -796,6 +800,20 @@ function onLiveFrame({ droneId, image, at }) {
   const img = document.getElementById('liveImg');
   img.src = image;
   img.style.display = 'block';
+  document.getElementById('liveWait').style.display = 'none';
+  document.getElementById('liveMeta').textContent = 'Live · updated ' + fmtTime(at);
+}
+// Binary live frame: wrap the bytes in a Blob and show via an object URL, revoking the
+// previous one each frame so the modal doesn't leak memory during a long viewing.
+function onLiveFrameBin({ droneId, buf, at }) {
+  if (droneId !== state.liveDroneId || !buf) return;
+  const img = document.getElementById('liveImg');
+  const url = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }));
+  const prev = img.dataset.objurl;
+  img.src = url;
+  img.style.display = 'block';
+  img.dataset.objurl = url;
+  if (prev) URL.revokeObjectURL(prev);
   document.getElementById('liveWait').style.display = 'none';
   document.getElementById('liveMeta').textContent = 'Live · updated ' + fmtTime(at);
 }
