@@ -214,6 +214,21 @@ function captureFrame(measureBrightness = false) {
   return c.toDataURL('image/jpeg', 0.6);
 }
 
+// Capture a JPEG as a raw ArrayBuffer (for binary live streaming — no base64 bloat).
+function captureBlob(cb) {
+  const v = $('video');
+  if (!v.videoWidth) return cb(null);
+  const w = 640;
+  const h = Math.round((v.videoHeight / v.videoWidth) * w) || 480;
+  const c = $('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(v, 0, 0, w, h);
+  c.toBlob((blob) => {
+    if (!blob) return cb(null);
+    blob.arrayBuffer().then(cb).catch(() => cb(null));
+  }, 'image/jpeg', 0.55);
+}
+
 // ---------- monitoring scan ----------
 async function scan() {
   if (!st.stream || st.busy || st.dispatch || st.awaitingReview) return;
@@ -350,23 +365,23 @@ function startLive() {
   if (st.liveRunning) return;
   st.liveRunning = true;
   const liveDroneId = st.droneId; // keep streaming this drone even if selection changes
-  const TARGET_MS = 300; // ~3 fps ceiling for the on-demand modal; latency-gated + backpressured
-  const tick = async () => {
+  const TARGET_MS = 120; // ~8 fps ceiling; binary over the socket is cheap, so aim higher
+  const schedule = (t0) => {
     if (!st.liveRunning) return;
-    let wait = TARGET_MS;
-    if (st.stream) {
-      const image = captureFrame();
-      if (image) {
-        const t0 = performance.now();
-        try {
-          await api(`/api/drones/${liveDroneId}/live/frame`, { method: 'POST', body: { image } });
-        } catch (e) {
-          /* police may have closed the view */
-        }
-        wait = Math.max(0, TARGET_MS - (performance.now() - t0));
-      }
-    }
-    if (st.liveRunning) st.liveTimer = setTimeout(tick, wait);
+    const wait = t0 ? Math.max(0, TARGET_MS - (performance.now() - t0)) : TARGET_MS;
+    st.liveTimer = setTimeout(tick, wait);
+  };
+  const tick = () => {
+    if (!st.liveRunning) return;
+    if (!st.stream) return schedule();
+    const t0 = performance.now();
+    captureBlob((buf) => {
+      if (!st.liveRunning) return;
+      if (!buf) return schedule();
+      // Emit as binary over the WebSocket; the ack releases the next frame (backpressure),
+      // so slow links throttle themselves instead of piling up.
+      socket.emit('drone:liveframe', liveDroneId, buf, () => schedule(t0));
+    });
   };
   tick();
 }
