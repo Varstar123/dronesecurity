@@ -7,6 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c2138'/><path d='M16 5 25 8.5 25 15 C25 21 21 25 16 27 C11 25 7 21 7 15 L7 8.5 Z' fill='%2316b0a6'/><path d='M12.3 16 15 18.7 19.7 13.3' fill='none' stroke='%230c2138' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="/css/style.css" />
+  <script>try{var t=localStorage.getItem('sd-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
   <div class="topbar">
@@ -16,6 +17,7 @@
       <div class="sub">Smart City Drone Security System · Group 17 · GEC Kozhikode</div>
     </div>
     <div class="spacer"></div>
+    <div class="theme-picker" id="themePicker"></div>
     <span id="aiBadge" class="badge mock">AI: —</span>
     <a class="navlink" href="/drone" target="_blank"><i data-lucide="plane"></i> Drone Camera App</a>
     <button class="btn ghost sm" id="clearImgBtn" title="Clear captured drone images (police authorization)"><i data-lucide="trash-2"></i> Clear images</button>

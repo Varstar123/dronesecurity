@@ -1,4 +1,4 @@
-import { api, esc, timeAgo, fmtTime, loadConfig, CONFIG, incidentMeta, SEV_CLASS, icon, incidentIcon, refreshIcons } from '/js/common.js';
+import { api, esc, timeAgo, fmtTime, loadConfig, CONFIG, incidentMeta, SEV_CLASS, icon, incidentIcon, refreshIcons, initThemePicker } from '/js/common.js';
 import { attachAsciiRipple } from '/js/ascii-ripple.js';
 
 const socket = io();
@@ -7,6 +7,7 @@ const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: n
 // ---------- boot ----------
 init();
 async function init() {
+  initThemePicker('themePicker');
   await loadConfig();
   const badge = document.getElementById('aiBadge');
   badge.textContent = `AI: ${CONFIG.aiLabel || 'Standby'}`;
