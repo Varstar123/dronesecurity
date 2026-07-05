@@ -605,5 +605,41 @@ html[data-theme="tricolor"] .tile::after {
   background-size: 250% 100%; background-repeat: no-repeat; background-position: 150% 0;
 }
 
+/* Tricolour: colour the stat-tile icon badges (instead of the shared silver chrome). */
+html[data-theme="tricolor"] .stats .icon3d.metal {
+  background: linear-gradient(180deg, var(--i3-hi, #2bd4c8), var(--i3-lo, #0f7d76));
+  border-color: rgba(0, 0, 0, .28); color: #fff;
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, .5),
+    inset 0 5px 9px 0 rgba(255, 255, 255, .12),
+    inset 0 -4px 8px 0 rgba(0, 0, 0, .28),
+    0 2px 4px 0 rgba(0, 0, 0, .2),
+    0 6px 14px -4px rgba(0, 0, 0, .32);
+}
+html[data-theme="tricolor"] .stats .tile:nth-child(1) .icon3d { --i3-hi: #2bd4c8; --i3-lo: #0f7d76; }
+html[data-theme="tricolor"] .stats .tile:nth-child(2) .icon3d { --i3-hi: #fcd34d; --i3-lo: #d97706; }
+html[data-theme="tricolor"] .stats .tile:nth-child(3) .icon3d { --i3-hi: #fb7185; --i3-lo: #dc2626; }
+html[data-theme="tricolor"] .stats .tile:nth-child(4) .icon3d { --i3-hi: #4ade80; --i3-lo: #15803d; }
+html[data-theme="tricolor"] .stats .tile:nth-child(5) .icon3d { --i3-hi: #818cf8; --i3-lo: #4f46e5; }
+html[data-theme="tricolor"] .stats .tile:nth-child(6) .icon3d { --i3-hi: #f8b26a; --i3-lo: #c2681a; }
+
+/* First hover on tricolour: an Indian-flag ribbon (saffron / white / green) flows
+   left→right in a wavy manner — one-shot per tile, driven by JS adding .flag-wave. */
+.tile .flag-sweep { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; border-radius: inherit; overflow: hidden; }
+html[data-theme="tricolor"] .tile .flag-sweep {
+  background: linear-gradient(100deg, transparent 8%, rgba(255,153,51,.72) 30%, rgba(255,255,255,.85) 50%, rgba(19,136,8,.72) 70%, transparent 92%);
+}
+html[data-theme="tricolor"] .tile.flag-wave .flag-sweep { animation: flag-flow 1.3s cubic-bezier(.36, 0, .2, 1) 1; }
+html[data-theme="tricolor"] .tile.flag-wave:hover::after { opacity: 0; } /* let the flag wave own the first hover */
+@keyframes flag-flow {
+  0%   { transform: translateX(-78%) translateY(0) skewX(-12deg); opacity: 0; }
+  12%  { opacity: 1; }
+  30%  { transform: translateX(-30%) translateY(-5px) skewX(-4deg); }
+  52%  { transform: translateX(6%)  translateY(5px)  skewX(4deg); }
+  74%  { transform: translateX(42%) translateY(-4px) skewX(9deg); opacity: 1; }
+  100% { transform: translateX(82%) translateY(0)    skewX(13deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .tile.flag-wave .flag-sweep { animation: none; } }
+
 /* Aurora: gradient primary buttons echo the blue→violet→magenta flow. */
 html[data-theme="aurora"] .btn.primary { background: linear-gradient(135deg, #5b8cff, #a855f7 55%, #d24bf0); border-color: #7c3aed; }
