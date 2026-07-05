@@ -542,7 +542,7 @@ let mapFitted = false;
 function fitMap() {
   if (!lmap) return;
   const pts = [];
-  for (const d of state.drones) if (typeof d.lat === 'number') pts.push([d.lat, d.lng]);
+  for (const d of state.drones) if (d.connected && typeof d.lat === 'number') pts.push([d.lat, d.lng]);
   for (const d of state.dispatches) if (d.status === 'active') pts.push([d.lat, d.lng]);
   for (const a of state.alerts) if (a.status === 'pending_review' && typeof a.lat === 'number') pts.push([a.lat, a.lng]);
   if (!pts.length) return;
@@ -616,6 +616,7 @@ function droneIcon(d) {
 }
 
 function renderMap() {
+  renderOfflineBox(); // keep the offline-drones side panel in sync (independent of Leaflet/visibility)
   if (!document.getElementById('map') || !window.L) return;
   const visible = document.getElementById('panel-map').classList.contains('active');
   if (!lmap) {
@@ -644,15 +645,43 @@ function renderMap() {
   if (state.pendingTarget) {
     L.marker([state.pendingTarget.lat, state.pendingTarget.lng], { icon: solidPin('#e0842b', 28) }).bindTooltip('Dispatch target').addTo(mapMarkers);
   }
-  // drones
+  // drones — only those actually online (a phone is controlling them) show on the map.
+  // Offline drones live in the side box instead, and re-appear here when they connect.
   for (const d of state.drones) {
-    if (typeof d.lat !== 'number') continue;
+    if (!d.connected || typeof d.lat !== 'number') continue;
     L.marker([d.lat, d.lng], { icon: droneIcon(d) })
-      .bindTooltip(`${esc(d.name)} · ${d.connected ? esc(d.status) + ' · online' : 'offline'} · ${esc(d.sector)}`)
+      .bindTooltip(`${esc(d.name)} · ${esc(d.status)} · online · ${esc(d.sector)}`)
       .addTo(mapMarkers);
   }
   refreshIcons();
-  if (!mapFitted && state.drones.length) { mapFitted = true; fitMap(); } // frame everything on first draw
+  if (!mapFitted && state.drones.some((d) => d.connected)) { mapFitted = true; fitMap(); } // frame the online fleet
+}
+
+// Offline drones aren't drawn on the map — they're listed in the side box. When a drone
+// comes online it drops out of here and its marker appears on the map (and vice-versa).
+function renderOfflineBox() {
+  const wrap = document.getElementById('offlineBox');
+  if (!wrap) return;
+  const offline = state.drones.filter((d) => !d.connected);
+  const onlineCount = state.drones.length - offline.length;
+  const items = offline.length
+    ? offline.map((d) => {
+        const seen = d.lastSeen ? 'last seen ' + timeAgo(d.lastSeen) : 'not yet connected';
+        return `<div class="ob-item">
+          <span class="icon3d i3-slate ob-ic">${icon('bot')}</span>
+          <div class="ob-id">
+            <div class="ob-name">${esc(d.name)}</div>
+            <div class="meta">${icon('map-pin')} ${esc(d.sector)}</div>
+            <div class="meta ob-seen">${seen}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="empty" style="padding:16px 4px; text-align:center">All drones are online.</div>`;
+  wrap.innerHTML =
+    `<div class="ob-head">${icon('bot')} Offline drones <span class="ob-count">${offline.length}</span></div>` +
+    `<div class="ob-sub">${onlineCount}/${state.drones.length} online · a drone joins the map the moment its phone connects.</div>` +
+    `<div class="ob-list">${items}</div>`;
+  refreshIcons();
 }
 
 // ---------- drone fleet list + on-demand live view ----------
