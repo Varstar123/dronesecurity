@@ -62,27 +62,31 @@
           <p class="small">Police received a report? Log it — the nearest online drones rush to the spot and stream live footage back.</p>
 
           <label class="field">1 · Type of emergency</label>
-          <div class="row" id="presetRow" style="gap:6px"></div>
-          <select id="d_type" style="margin-top:8px"></select>
+          <div class="field-group">
+            <div class="preset-row" id="presetRow"></div>
+            <select id="d_type"></select>
+          </div>
 
           <label class="field">2 · Location</label>
-          <select id="d_place"><option value="">— pick a known location —</option></select>
-          <input id="d_addr" placeholder="…or type the place, e.g. Jewellery Market, SM Street" style="margin-top:6px" />
-          <input id="d_coords" placeholder="…or paste coordinates / a Google Maps link" style="margin-top:6px" />
-          <div class="small" id="coordStatus" style="margin-top:4px"></div>
-          <details class="adv" style="margin-top:8px">
+          <div class="field-group">
+            <select id="d_place"><option value="">— pick a known location —</option></select>
+            <input id="d_addr" placeholder="…or type the place, e.g. Jewellery Market, SM Street" />
+            <input id="d_coords" placeholder="…or paste coordinates / a Google Maps link" />
+          </div>
+          <div class="small" id="coordStatus" style="margin-top:8px"></div>
+          <details class="adv" style="margin-top:10px">
             <summary>Exact coordinates &amp; map</summary>
-            <div class="grid" style="grid-template-columns:1fr 1fr; gap:8px; margin-top:8px">
+            <div class="grid" style="grid-template-columns:1fr 1fr; gap:10px; margin-top:10px">
               <input id="d_lat" placeholder="Latitude" />
               <input id="d_lng" placeholder="Longitude" />
             </div>
-            <p class="small" style="margin-top:6px">Tip: click the <b>Fleet Map</b> tab to drop a pin.</p>
+            <p class="small" style="margin-top:8px">Tip: click the <b>Fleet Map</b> tab to drop a pin.</p>
           </details>
 
           <label class="field">3 · Details (optional)</label>
           <textarea id="d_desc" placeholder="Armed robbery reported at a jewellery shop…"></textarea>
 
-          <div class="actions" style="margin-top:14px">
+          <div class="actions" style="margin-top:18px">
             <button class="btn-pop" id="d_send" style="flex:1"><i data-lucide="send"></i> Alert nearest drones</button>
           </div>
         </div>
