@@ -8,6 +8,7 @@ const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: n
 init();
 async function init() {
   initThemePicker('themePicker');
+  setupFlagWave();
   await loadConfig();
   const badge = document.getElementById('aiBadge');
   badge.textContent = `AI: ${CONFIG.aiLabel || 'Standby'}`;
@@ -122,6 +123,20 @@ function setStats(s) {
   const pill = document.getElementById('pill_alerts');
   if (s.pendingAlerts > 0) { pill.style.display = ''; pill.textContent = s.pendingAlerts; }
   else pill.style.display = 'none';
+}
+
+// One-time Indian-flag wave across each stat tile on its FIRST hover (tricolour only).
+function setupFlagWave() {
+  document.querySelectorAll('.stats .tile').forEach((tile) => {
+    if (!tile.querySelector('.flag-sweep')) tile.insertAdjacentHTML('beforeend', '<span class="flag-sweep"></span>');
+    let waved = false;
+    tile.addEventListener('mouseenter', () => {
+      if (waved || document.documentElement.dataset.theme !== 'tricolor') return;
+      waved = true;
+      tile.classList.add('flag-wave');
+      tile.addEventListener('animationend', () => tile.classList.remove('flag-wave'), { once: true });
+    });
+  });
 }
 
 // ---------- tabs ----------
