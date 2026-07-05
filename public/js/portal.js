@@ -803,23 +803,42 @@ async function openLive(id) {
   socket.emit('police:watch', { droneId: id }); // so the server stops the feed if this tab closes
   // If no frame has streamed after a few seconds, the drone's camera is almost certainly off.
   clearTimeout(state.liveWaitTimer);
-  state.liveWaitTimer = setTimeout(() => {
-    if (!state.liveGotFrame && state.liveDroneId === id) {
-      wait.classList.add('cam-off-msg');
-      wait.innerHTML = `<b>Camera is off</b><br>${esc(d ? d.name : 'This drone')} isn't streaming — ask the operator to start its camera.`;
-    }
-  }, 3500);
+  state.liveWaitTimer = setTimeout(() => { if (!state.liveGotFrame && state.liveDroneId === id) liveShowOff(); }, 3500);
   try {
     await api(`/api/drones/${id}/live/start`, { method: 'POST' });
   } catch (e) {
     wait.textContent = 'Could not start live view: ' + e.message;
   }
 }
+// Camera stopped streaming (off from the start, or turned off mid-view): drop the
+// frozen last frame and show a clear message.
+function liveShowOff() {
+  const wait = document.getElementById('liveWait');
+  const img = document.getElementById('liveImg');
+  const d = state.drones.find((x) => x.id === state.liveDroneId);
+  img.style.display = 'none';
+  wait.style.display = '';
+  wait.classList.add('cam-off-msg');
+  wait.innerHTML = `<b>Camera is off</b><br>${esc(d ? d.name : 'This drone')} isn't streaming — ask the operator to start its camera.`;
+}
+// A frame arrived: hide the waiting state and (re)arm the stale watchdog — if frames
+// stop coming (camera turned off), liveShowOff fires after the gap.
+function liveFrameArrived() {
+  state.liveGotFrame = true;
+  clearTimeout(state.liveWaitTimer);
+  clearTimeout(state.liveStaleTimer);
+  const wait = document.getElementById('liveWait');
+  wait.style.display = 'none';
+  wait.classList.remove('cam-off-msg');
+  state.liveStaleTimer = setTimeout(liveShowOff, 2500);
+}
+
 async function closeLive() {
   const id = state.liveDroneId;
   document.getElementById('liveBack').classList.remove('open');
   state.liveDroneId = null;
   clearTimeout(state.liveWaitTimer);
+  clearTimeout(state.liveStaleTimer);
   const img = document.getElementById('liveImg');
   if (img.dataset.objurl) { URL.revokeObjectURL(img.dataset.objurl); delete img.dataset.objurl; }
   img.removeAttribute('src');
@@ -830,20 +849,17 @@ async function closeLive() {
 }
 function onLiveFrame({ droneId, image, at }) {
   if (droneId !== state.liveDroneId) return;
-  state.liveGotFrame = true;
-  clearTimeout(state.liveWaitTimer);
+  liveFrameArrived();
   const img = document.getElementById('liveImg');
   img.src = image;
   img.style.display = 'block';
-  document.getElementById('liveWait').style.display = 'none';
   document.getElementById('liveMeta').textContent = 'Live · updated ' + fmtTime(at);
 }
 // Binary live frame: wrap the bytes in a Blob and show via an object URL, revoking the
 // previous one each frame so the modal doesn't leak memory during a long viewing.
 function onLiveFrameBin({ droneId, buf, at }) {
   if (droneId !== state.liveDroneId || !buf) return;
-  state.liveGotFrame = true;
-  clearTimeout(state.liveWaitTimer);
+  liveFrameArrived();
   const img = document.getElementById('liveImg');
   const url = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }));
   const prev = img.dataset.objurl;
@@ -851,7 +867,6 @@ function onLiveFrameBin({ droneId, buf, at }) {
   img.style.display = 'block';
   img.dataset.objurl = url;
   if (prev) URL.revokeObjectURL(prev);
-  document.getElementById('liveWait').style.display = 'none';
   document.getElementById('liveMeta').textContent = 'Live · updated ' + fmtTime(at);
 }
 
