@@ -9,17 +9,14 @@
   <script>try{var t=localStorage.getItem('sd-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
 </head>
 <body>
-  <div class="topbar">
+  <div class="topbar drone-top">
     <div class="logo"><svg class="lucide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="5" r="2.4"/><circle cx="19" cy="5" r="2.4"/><circle cx="5" cy="19" r="2.4"/><circle cx="19" cy="19" r="2.4"/><path d="M6.7 6.7 9.5 9.5M17.3 6.7 14.5 9.5M6.7 17.3 9.5 14.5M17.3 17.3 14.5 14.5"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.5"/></svg></div>
-    <div>
-      <h1>Drone Camera Unit</h1>
-      <div class="sub">Point the camera at the scene — the AI reports incidents to the police portal</div>
-    </div>
+    <div class="topbar-title"><h1>Drone Camera Unit</h1></div>
     <div class="spacer"></div>
     <div class="theme-picker" id="themePicker"></div>
     <span id="batteryBadge" class="badge" style="display:none"></span>
     <span id="aiBadge" class="badge mock">AI: —</span>
-    <a class="navlink" href="/" target="_blank"><i data-lucide="monitor"></i> Police Portal</a>
+    <a class="navlink" href="/" target="_blank" title="Police Portal"><i data-lucide="monitor"></i> <span class="navlink-txt">Police Portal</span></a>
   </div>
 
   <div class="drone-shell">
