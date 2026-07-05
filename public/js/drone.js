@@ -1,4 +1,4 @@
-import { api, esc, loadConfig, CONFIG, incidentMeta, icon, incidentIcon, refreshIcons } from '/js/common.js';
+import { api, esc, loadConfig, CONFIG, incidentMeta, icon, incidentIcon, refreshIcons, initThemePicker } from '/js/common.js';
 
 const socket = io();
 const $ = (id) => document.getElementById(id);
@@ -38,6 +38,7 @@ const st = {
 
 init();
 async function init() {
+  initThemePicker('themePicker');
   await loadConfig();
   const badge = $('aiBadge');
   badge.textContent = `AI: ${CONFIG.aiLabel || 'Standby'}`;

@@ -69,3 +69,47 @@ export function timeAgo(iso) {
 export function fmtTime(iso) {
   return iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
 }
+
+// ---- Theme picker: 4 premium dark palettes, remembered per browser ----
+export const THEMES = [
+  { id: 'midnight', name: 'Midnight', sw: ['#0d1a27', '#16b0a6'] },
+  { id: 'graphite', name: 'Graphite', sw: ['#14161b', '#22c1d6'] },
+  { id: 'obsidian', name: 'Obsidian', sw: ['#0b0b14', '#8b7bff'] },
+  { id: 'emerald', name: 'Emerald', sw: ['#0a1512', '#10b981'] }
+];
+export function currentTheme() {
+  try { return localStorage.getItem('sd-theme') || 'midnight'; } catch { return 'midnight'; }
+}
+export function applyTheme(id) {
+  document.documentElement.dataset.theme = id;
+  try { localStorage.setItem('sd-theme', id); } catch {}
+}
+export function initThemePicker(mount) {
+  const el = typeof mount === 'string' ? document.getElementById(mount) : mount;
+  if (!el) return;
+  let cur = currentTheme();
+  applyTheme(cur);
+  const sw = (t) => `<span class="theme-sw"><i style="background:${t.sw[0]}"></i><i style="background:${t.sw[1]}"></i></span>`;
+  const curT = () => THEMES.find((t) => t.id === cur) || THEMES[0];
+  el.innerHTML =
+    `<button class="theme-btn" id="themeBtn" title="Change theme" aria-haspopup="true"><span class="theme-cur">${sw(curT())}</span><span>Theme</span></button>` +
+    `<div class="theme-menu" id="themeMenu">` +
+    THEMES.map((t) => `<button class="theme-opt" data-theme-id="${t.id}">${sw(t)}<span>${t.name}</span><span class="theme-check" data-check="${t.id}">${icon('check')}</span></button>`).join('') +
+    `</div>`;
+  const menu = el.querySelector('#themeMenu');
+  const btn = el.querySelector('#themeBtn');
+  const mark = () => el.querySelectorAll('[data-check]').forEach((c) => (c.style.visibility = c.dataset.check === cur ? 'visible' : 'hidden'));
+  mark();
+  btn.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
+  el.querySelectorAll('[data-theme-id]').forEach((b) => (b.onclick = (e) => {
+    e.stopPropagation();
+    cur = b.dataset.themeId;
+    applyTheme(cur);
+    el.querySelector('.theme-cur').innerHTML = sw(curT());
+    mark();
+    menu.classList.remove('open');
+    refreshIcons();
+  }));
+  document.addEventListener('click', () => menu.classList.remove('open'));
+  refreshIcons();
+}
