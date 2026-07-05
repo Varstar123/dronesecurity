@@ -591,7 +591,19 @@ html[data-theme="tricolor"] .theme-btn:hover { background: rgba(19, 136, 8, .13)
 html[data-theme="tricolor"] .tab:hover { background: rgba(19, 136, 8, .06); }
 html[data-theme="tricolor"] .ac-head:hover { background: rgba(19, 136, 8, .05); }
 html[data-theme="tricolor"] .ob-item { background: rgba(19, 136, 8, .04); }
-html[data-theme="tricolor"] .tile:hover::after { opacity: 0; } /* white sheen washes out on light */
+/* Tricolour: sweep a SAFFRON reflection (orange, not white) across tiles on hover.
+   Normal blend + translucent orange shows up on the light background where the
+   screen-blended white sheen would wash out. */
+html[data-theme="tricolor"] .tile::after {
+  mix-blend-mode: normal;
+  background: linear-gradient(120deg,
+    rgba(255, 153, 51, 0) 30%,
+    rgba(255, 153, 51, .16) 43%,
+    rgba(255, 153, 51, .44) 50%,
+    rgba(255, 153, 51, .16) 57%,
+    rgba(255, 153, 51, 0) 70%);
+  background-size: 250% 100%; background-repeat: no-repeat; background-position: 150% 0;
+}
 
 /* Aurora: gradient primary buttons echo the blue→violet→magenta flow. */
 html[data-theme="aurora"] .btn.primary { background: linear-gradient(135deg, #5b8cff, #a855f7 55%, #d24bf0); border-color: #7c3aed; }
