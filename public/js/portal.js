@@ -7,6 +7,7 @@ const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: n
 // ---------- boot ----------
 init();
 async function init() {
+  setupSidebar();
   initThemePicker('themePicker');
   setupFlagWave();
   await loadConfig();
@@ -123,6 +124,24 @@ function setStats(s) {
   const pill = document.getElementById('pill_alerts');
   if (s.pendingAlerts > 0) { pill.style.display = ''; pill.textContent = s.pendingAlerts; }
   else pill.style.display = 'none';
+}
+
+// Left officer sidebar: open/close + logout stub (real auth arrives with the login page).
+function setupSidebar() {
+  const sb = document.getElementById('sidebar');
+  const back = document.getElementById('sidebarBack');
+  if (!sb || !back) return;
+  const open = () => { sb.classList.add('open'); back.classList.add('open'); };
+  const close = () => { sb.classList.remove('open'); back.classList.remove('open'); };
+  document.getElementById('menuBtn').onclick = open;
+  document.getElementById('sbClose').onclick = close;
+  back.onclick = close;
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  const logout = document.getElementById('logoutBtn');
+  if (logout) logout.onclick = () => {
+    close();
+    toast({ incidentType: 'normal', title: 'Log out', sector: 'Session', interpretation: 'Sign-in / out arrives with the login page.' });
+  };
 }
 
 // One-time Indian-flag wave across each stat tile on its FIRST hover (tricolour only).

@@ -11,18 +11,48 @@
 </head>
 <body>
   <div class="topbar">
+    <button class="menu-btn" id="menuBtn" aria-label="Open officer menu"><span></span></button>
     <div class="logo"><i data-lucide="radar"></i></div>
     <div>
       <h1>Police Control Center</h1>
       <div class="sub">Smart City Drone Security System · Group 17 · GEC Kozhikode</div>
     </div>
     <div class="spacer"></div>
-    <div class="theme-picker" id="themePicker"></div>
     <span id="aiBadge" class="badge mock">AI: —</span>
-    <a class="navlink" href="/drone" target="_blank"><i data-lucide="plane"></i> Drone Camera App</a>
+    <a class="navlink" href="/drone" target="_blank"><svg class="lucide" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="5" r="2.4"/><circle cx="19" cy="5" r="2.4"/><circle cx="5" cy="19" r="2.4"/><circle cx="19" cy="19" r="2.4"/><path d="M6.7 6.7 9.5 9.5M17.3 6.7 14.5 9.5M6.7 17.3 9.5 14.5M17.3 17.3 14.5 14.5"/><rect x="9.5" y="9.5" width="5" height="5" rx="1.5"/></svg> Drone Camera App</a>
     <button class="btn ghost sm" id="clearImgBtn" title="Clear captured drone images (police authorization)"><i data-lucide="trash-2"></i> Clear images</button>
     <button class="btn ghost sm" id="resetBtn" title="Clear all incidents"><i data-lucide="rotate-ccw"></i> Reset</button>
   </div>
+
+  <!-- Left officer sidebar -->
+  <div class="sidebar-back" id="sidebarBack"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-head">
+      <div class="sb-title">Officer on duty</div>
+      <button class="sb-close" id="sbClose" aria-label="Close"><i data-lucide="x"></i></button>
+    </div>
+
+    <div class="sb-profile">
+      <div class="sb-avatar">
+        <img id="sbPhoto" alt="Officer photo" src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='%231a3450'/><stop offset='1' stop-color='%230c2138'/></linearGradient></defs><rect width='96' height='96' fill='url(%23g)'/><circle cx='48' cy='40' r='16' fill='%238ba6c0'/><path d='M22 82c0-14 12-22 26-22s26 8 26 22z' fill='%238ba6c0'/></svg>" />
+      </div>
+      <div class="sb-name" id="sbName">Varun Narayan</div>
+      <div class="sb-role">Control Center Officer · On duty</div>
+    </div>
+
+    <div class="sb-info">
+      <div class="sb-row"><span class="sb-k">Badge ID</span><span class="sb-v" id="sbId">KL-17-2291</span></div>
+      <div class="sb-row"><span class="sb-k"><i data-lucide="map-pin"></i> Station</span><span class="sb-v" id="sbStation">Mananchira Control Center, Kozhikode</span></div>
+    </div>
+
+    <div class="sb-spacer"></div>
+
+    <div class="sb-foot">
+      <div class="sb-flabel">Appearance</div>
+      <div class="theme-picker" id="themePicker"></div>
+      <button class="btn ghost sb-logout" id="logoutBtn"><i data-lucide="log-out"></i> Log out</button>
+    </div>
+  </aside>
 
   <div class="stats">
     <div class="tile"><span class="icon3d metal"><i data-lucide="radar"></i></span><div class="tile-txt"><div class="n" id="s_drones">0</div><div class="l">Drones Online</div></div></div>
