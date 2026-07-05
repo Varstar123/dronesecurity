@@ -85,6 +85,7 @@ create table if not exists public.officers (
   photo         text,                 -- URL or data URI (optional)
   role          text default 'officer',  -- officer | admin
   active        boolean default true,
+  theme         text,                 -- saved UI theme (follows the officer across devices)
   created_at    timestamptz default now()
 );
 create index if not exists officers_username_idx on public.officers (lower(username));

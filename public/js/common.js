@@ -86,9 +86,12 @@ export function applyTheme(id) {
   document.documentElement.dataset.theme = id;
   try { localStorage.setItem('sd-theme', id); } catch {}
 }
-export function initThemePicker(mount) {
+// onChange(id) fires only on USER-initiated changes (so callers can persist to the
+// account). Returns { apply(id) } to set the theme programmatically (e.g. from the
+// signed-in officer's saved preference) without re-triggering onChange.
+export function initThemePicker(mount, onChange) {
   const el = typeof mount === 'string' ? document.getElementById(mount) : mount;
-  if (!el) return;
+  if (!el) return { apply() {} };
   let cur = currentTheme();
   applyTheme(cur);
   const sw = (t) => `<span class="theme-sw"><i style="background:${t.sw[0]}"></i><i style="background:${t.sw[1]}"></i></span>`;
@@ -101,17 +104,24 @@ export function initThemePicker(mount) {
   const menu = el.querySelector('#themeMenu');
   const btn = el.querySelector('#themeBtn');
   const mark = () => el.querySelectorAll('[data-check]').forEach((c) => (c.style.visibility = c.dataset.check === cur ? 'visible' : 'hidden'));
-  mark();
+  const refresh = () => { const s = el.querySelector('.theme-cur'); if (s) s.innerHTML = sw(curT()); mark(); };
+  refresh();
   btn.onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
   el.querySelectorAll('[data-theme-id]').forEach((b) => (b.onclick = (e) => {
     e.stopPropagation();
     cur = b.dataset.themeId;
     applyTheme(cur);
-    el.querySelector('.theme-cur').innerHTML = sw(curT());
-    mark();
+    refresh();
     menu.classList.remove('open');
     refreshIcons();
+    if (typeof onChange === 'function') onChange(cur);
   }));
   document.addEventListener('click', () => menu.classList.remove('open'));
   refreshIcons();
+  return {
+    apply(id) {
+      if (!id || id === cur || !THEMES.some((t) => t.id === id)) return;
+      cur = id; applyTheme(id); refresh(); refreshIcons();
+    }
+  };
 }
