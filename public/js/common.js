@@ -75,7 +75,9 @@ export const THEMES = [
   { id: 'midnight', name: 'Midnight', sw: ['#0d1a27', '#16b0a6'] },
   { id: 'graphite', name: 'Graphite', sw: ['#14161b', '#22c1d6'] },
   { id: 'obsidian', name: 'Obsidian', sw: ['#0b0b14', '#8b7bff'] },
-  { id: 'emerald', name: 'Emerald', sw: ['#0a1512', '#10b981'] }
+  { id: 'emerald', name: 'Emerald', sw: ['#0a1512', '#10b981'] },
+  { id: 'tricolor', name: 'Tricolour', sw: ['#ff9933', '#138808'] },
+  { id: 'aurora', name: 'Aurora', sw: ['#5b8cff', '#d24bf0'] }
 ];
 export function currentTheme() {
   try { return localStorage.getItem('sd-theme') || 'midnight'; } catch { return 'midnight'; }
