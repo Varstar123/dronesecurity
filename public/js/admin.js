@@ -69,7 +69,6 @@ function openEditor(id) {
   $('f_badge').value = o ? (o.badgeId || '') : '';
   $('f_role').value = o ? o.role : 'officer';
   $('f_station').value = o ? (o.station || '') : '';
-  $('f_photo').value = o ? (o.photo || '') : '';
   $('f_password').value = '';
   $('f_password').placeholder = o ? 'Leave blank to keep current password' : 'Set a password';
   $('pwLabel').innerHTML = o ? 'New password <span class="small">(optional)</span>' : 'Password';
@@ -88,8 +87,7 @@ async function saveOfficer(e) {
     name: $('f_name').value.trim(),
     badgeId: $('f_badge').value.trim(),
     role: $('f_role').value,
-    station: $('f_station').value.trim(),
-    photo: $('f_photo').value.trim() || null
+    station: $('f_station').value.trim()
   };
   if (pw) body.password = pw;
   const btn = $('editSave');
