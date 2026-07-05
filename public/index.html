@@ -41,13 +41,17 @@
   <div class="panel-wrap">
     <!-- ALERTS -->
     <section class="panel active" id="panel-alerts">
-      <div class="section-title">Pending drone alerts — tap a card for full details, then decide</div>
-      <div id="alertsPending" class="alert-list"></div>
-      <div class="disp-bar" style="margin-top:26px">
-        <div class="section-title" style="margin:0">Reviewed history</div>
-        <button class="btn ghost sm" id="clearAlertsBtn" style="display:none"><i data-lucide="trash-2"></i> Clear history</button>
+      <div class="alert-section">
+        <div class="section-title">Pending drone alerts — tap a card for full details, then decide</div>
+        <div id="alertsPending" class="alert-list"></div>
       </div>
-      <div id="alertsHistory" class="alert-list"></div>
+      <div class="alert-section">
+        <div class="disp-bar">
+          <div class="section-title" style="margin:0">Reviewed history</div>
+          <button class="btn ghost sm" id="clearAlertsBtn" style="display:none"><i data-lucide="trash-2"></i> Clear history</button>
+        </div>
+        <div id="alertsHistory" class="alert-list"></div>
+      </div>
     </section>
 
     <!-- DISPATCH -->
