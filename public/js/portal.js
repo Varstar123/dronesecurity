@@ -483,7 +483,9 @@ function renderDispatches() {
       : null;
 
   const list = state.dispatches;
-  wrap.innerHTML = list.length ? list.map(dispatchCard).join('') : `<div class="empty">No dispatches yet. Enter a location to send drones.</div>`;
+  wrap.innerHTML = list.length ? list.map(dispatchCard).join('') : `<div class="empty ripple-empty">No dispatches yet. Enter a location to send drones.</div>`;
+  const dispEmpty = wrap.querySelector('.ripple-empty');
+  if (dispEmpty) attachAsciiRipple(dispEmpty, { auto: true });
   wrap.querySelectorAll('[data-livecam]').forEach((b) => (b.onclick = () => openLive(b.dataset.livecam)));
 
   for (const [id, val] of Object.entries(saved)) {
