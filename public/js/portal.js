@@ -415,9 +415,14 @@ function dispatchCard(d) {
       // Police can pull the live camera from any online assigned drone — even while it
       // is still en route to the target — so they can watch the approach, not just after arrival.
       const online = !!(live && live.connected);
+      // Live battery of the assigned drone (only meaningful while it's online).
+      const bat = online && typeof live.battery === 'number' ? live.battery : null;
+      const batIcon = bat == null ? '' : bat > 60 ? 'battery-full' : bat > 25 ? 'battery-medium' : bat > 0 ? 'battery-low' : 'battery';
+      const batCol = bat == null ? '' : bat > 25 ? '#7cffb0' : bat > 10 ? '#f59e0b' : '#ef4444';
+      const batTxt = bat == null ? '' : ` · <span style="color:${batCol}">${icon(batIcon)} ${bat}%</span>`;
       const camLabel = arrived ? 'Access live camera' : 'Live camera (en route)';
       const cam = active && online ? `<button class="btn sm primary" data-livecam="${a.id}">${icon('video')} ${camLabel}</button>` : '';
-      return `<span class="chip"${style}>${icon('bot')} ${esc(a.name)} · ${status}</span>${cam}`;
+      return `<span class="chip"${style}>${icon('bot')} ${esc(a.name)} · ${status}${batTxt}</span>${cam}`;
     })
     .join('');
   const tiles = d.assignedDrones
@@ -449,10 +454,12 @@ function dispatchCard(d) {
     <div class="row" style="margin-top:8px; gap:6px; align-items:center">${droneRows}</div>
     <div class="footage">${tiles}</div>
     ${updates}
-    ${active ? `<div class="row" style="margin-top:12px; gap:8px">
-        <input id="conv_${d.id}" placeholder="Convey info to main force (e.g. 2 suspects, north exit)" style="flex:1" />
-        <button class="btn warn" data-convey="${d.id}">${icon('send')} Convey</button>
-        <button class="btn primary" data-resolve="${d.id}">${icon('circle-check')} Resolve</button>
+    ${active ? `<div style="margin-top:14px">
+        <input id="conv_${d.id}" placeholder="Convey info to main force (e.g. 2 suspects, north exit)" style="width:100%" />
+        <div style="display:flex; gap:8px; margin-top:10px">
+          <button class="btn warn" data-convey="${d.id}">${icon('send')} Convey</button>
+          <button class="btn primary" data-resolve="${d.id}">${icon('circle-check')} Resolve</button>
+        </div>
       </div>` : ''}
   </div>`;
 }
