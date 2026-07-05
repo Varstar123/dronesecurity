@@ -702,7 +702,7 @@ app.post('/api/drones/:id/live/frame', (req, res) => {
 
 // ---- demo reset (keeps the fleet, clears incidents) ----------------------
 
-app.post('/api/admin/reset', (_req, res) => {
+app.post('/api/admin/reset', requireAdmin, (_req, res) => {
   db.state.alerts = [];
   db.state.dispatches = [];
   db.state.mainForce = [];
@@ -850,7 +850,7 @@ app.post('/api/resolve-location', async (req, res) => {
 
 // ---- police: clear captured images (authorization-key protected) --------
 
-app.post('/api/admin/clear-images', async (req, res) => {
+app.post('/api/admin/clear-images', requireAdmin, async (req, res) => {
   const { secretKey, mode } = req.body || {};
   if (secretKey !== CLEAR_SECRET) return res.status(403).json({ error: 'Invalid authorization key' });
 

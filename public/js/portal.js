@@ -278,6 +278,10 @@ async function loadOfficer() {
   if (me.photo) { const p = document.getElementById('sbPhoto'); if (p) p.src = me.photo; }
   const role = document.querySelector('.sb-role');
   if (role) role.textContent = (me.role === 'admin' ? 'Administrator' : 'Control Center Officer') + ' · On duty';
+  // Admin-only topbar actions (Clear images / Reset) — hidden for regular officers.
+  if (me.role === 'admin') {
+    ['clearImgBtn', 'resetBtn'].forEach((id) => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+  }
   if (me.role === 'admin' && !document.getElementById('adminLink')) {
     const foot = document.querySelector('.sb-foot');
     const logoutBtn = document.getElementById('logoutBtn');
