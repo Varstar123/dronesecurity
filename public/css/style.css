@@ -151,10 +151,10 @@ h1 .lucide, h3 .lucide, .section-title .lucide { margin-right: 6px; }
 .menu-btn span::before { top: -6px; }
 .menu-btn span::after { top: 6px; }
 
-.sidebar-back { position: fixed; inset: 0; z-index: 90; background: rgba(3,10,18,.5);
+.sidebar-back { position: fixed; inset: 0; z-index: 900; background: rgba(3,10,18,.5);
   opacity: 0; visibility: hidden; transition: opacity .25s ease, visibility .25s ease; }
 .sidebar-back.open { opacity: 1; visibility: visible; }
-.sidebar { position: fixed; top: 0; left: 0; height: 100%; width: 300px; max-width: 84vw; z-index: 95;
+.sidebar { position: fixed; top: 0; left: 0; height: 100%; width: 300px; max-width: 84vw; z-index: 950;
   background: var(--panel); border-right: 1px solid var(--line); box-shadow: var(--shadow);
   display: flex; flex-direction: column; padding: 18px; overflow-y: auto;
   transform: translateX(-100%); transition: transform .28s cubic-bezier(.4,0,.2,1); }
@@ -435,7 +435,10 @@ details.adv[open] summary { color: var(--text); }
   border-radius: 12px; padding: 8px 10px 8px 13px; box-shadow: var(--shadow); font-size: 13px; }
 .pin-confirm.show { display: flex; }
 .pin-confirm #pinCoords { font-variant-numeric: tabular-nums; color: var(--text); }
-#map { width: 100%; height: 520px; display: block; border-radius: 10px; background: var(--map-bg); overflow: hidden; }
+/* z-index: 0 + position makes #map its OWN stacking context, so Leaflet's internal
+   pane/control z-indexes (200–1000) stay INSIDE the map instead of leaking out and
+   covering modals/overlays. */
+#map { width: 100%; height: 520px; display: block; border-radius: 10px; background: var(--map-bg); overflow: hidden; position: relative; z-index: 0; }
 #map .leaflet-container { background: var(--map-bg); }
 .leaflet-tooltip { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
 .leaflet-tooltip::before { border-top-color: var(--line); }
@@ -447,7 +450,7 @@ details.adv[open] summary { color: var(--text); }
 .log-item .t { font-size: 12px; color: var(--muted); }
 
 /* ---------- toasts ---------- */
-#toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 10px; z-index: 60; }
+#toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 10px; z-index: 1100; }
 .toast {
   background: var(--panel-2); border: 1px solid var(--line); border-left: 5px solid var(--sev-high);
   padding: 12px 16px; border-radius: 12px; box-shadow: var(--shadow); max-width: 340px;
@@ -458,7 +461,7 @@ details.adv[open] summary { color: var(--text); }
 @keyframes slidein { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---------- modal ---------- */
-.modal-back { position: fixed; inset: 0; background: rgba(3,10,18,.72); display: none; align-items: center; justify-content: center; z-index: 70; }
+.modal-back { position: fixed; inset: 0; background: rgba(3,10,18,.72); display: none; align-items: center; justify-content: center; z-index: 1000; }
 .modal-back.open { display: flex; }
 .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; width: min(460px, 92vw); box-shadow: var(--shadow); }
 .modal h3 { margin: 0 0 6px; }
