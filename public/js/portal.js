@@ -8,6 +8,7 @@ const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: n
 init();
 async function init() {
   setupSidebar();
+  setupPhotoEdit(); // let the officer change their own avatar
   loadOfficer(); // fill the sidebar with the signed-in officer + admin link
   initThemePicker('themePicker');
   setupFlagWave();
@@ -166,6 +167,49 @@ function setupSidebar() {
     try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
     location.href = '/login';
   };
+}
+
+// Officer changes their own profile photo: pick a file → resize to a small square
+// avatar client-side → save it to their account.
+function setupPhotoEdit() {
+  const btn = document.getElementById('editPhotoBtn');
+  const input = document.getElementById('photoInput');
+  if (!btn || !input) return;
+  btn.onclick = () => input.click();
+  input.onchange = async () => {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    btn.classList.add('busy');
+    try {
+      const dataUrl = await resizeToAvatar(file, 256, 0.85);
+      const me = await api('/api/auth/photo', { method: 'POST', body: { photo: dataUrl } });
+      const img = document.getElementById('sbPhoto');
+      if (img) img.src = me.photo || dataUrl;
+    } catch (e) {
+      alert('Could not update photo: ' + e.message);
+    } finally {
+      btn.classList.remove('busy');
+    }
+  };
+}
+function resizeToAvatar(file, size, quality) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const c = document.createElement('canvas');
+      c.width = size; c.height = size;
+      const ctx = c.getContext('2d');
+      const scale = Math.max(size / img.width, size / img.height); // cover
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      resolve(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('that file is not a valid image')); };
+    img.src = url;
+  });
 }
 
 // Load the signed-in officer into the sidebar; show an admin link for admins.

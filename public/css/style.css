@@ -165,7 +165,14 @@ h1 .lucide, h3 .lucide, .section-title .lucide { margin-right: 6px; }
 .sb-close:hover { background: rgba(255,255,255,.06); color: var(--text); }
 .sb-close .lucide { margin: 0; }
 .sb-profile { display: flex; flex-direction: column; align-items: center; text-align: center; margin-top: 20px; }
+.sb-avatar-wrap { position: relative; width: 96px; }
 .sb-avatar { width: 96px; height: 96px; border-radius: 50%; overflow: hidden; border: 3px solid var(--teal-d); box-shadow: var(--shadow); }
+.sb-avatar-edit { position: absolute; right: -2px; bottom: -2px; width: 30px; height: 30px; border-radius: 50%; padding: 0;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background: var(--teal-d); border: 2px solid var(--panel); color: #fff; box-shadow: var(--shadow); }
+.sb-avatar-edit:hover { filter: brightness(1.15); }
+.sb-avatar-edit .lucide { width: 15px; height: 15px; margin: 0; }
+.sb-avatar-edit.busy { opacity: .6; pointer-events: none; }
 .sb-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .sb-name { font-size: 17px; font-weight: 800; margin-top: 12px; }
 .sb-role { font-size: 12px; color: var(--teal); font-weight: 600; margin-top: 3px; }
