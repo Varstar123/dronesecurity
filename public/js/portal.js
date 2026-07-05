@@ -8,6 +8,7 @@ const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: n
 init();
 async function init() {
   setupSidebar();
+  loadOfficer(); // fill the sidebar with the signed-in officer + admin link
   initThemePicker('themePicker');
   setupFlagWave();
   await loadConfig();
@@ -161,10 +162,37 @@ function setupSidebar() {
   back.onclick = close;
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   const logout = document.getElementById('logoutBtn');
-  if (logout) logout.onclick = () => {
-    close();
-    toast({ incidentType: 'normal', title: 'Log out', sector: 'Session', interpretation: 'Sign-in / out arrives with the login page.' });
+  if (logout) logout.onclick = async () => {
+    try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
+    location.href = '/login';
   };
+}
+
+// Load the signed-in officer into the sidebar; show an admin link for admins.
+async function loadOfficer() {
+  let me;
+  try { me = await api('/api/auth/me'); }
+  catch { location.href = '/login'; return; }
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('sbName', me.name || me.username);
+  set('sbId', me.badgeId || '—');
+  set('sbStation', me.station || '—');
+  if (me.photo) { const p = document.getElementById('sbPhoto'); if (p) p.src = me.photo; }
+  const role = document.querySelector('.sb-role');
+  if (role) role.textContent = (me.role === 'admin' ? 'Administrator' : 'Control Center Officer') + ' · On duty';
+  if (me.role === 'admin' && !document.getElementById('adminLink')) {
+    const foot = document.querySelector('.sb-foot');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (foot && logoutBtn) {
+      const a = document.createElement('a');
+      a.id = 'adminLink';
+      a.className = 'btn ghost sb-logout';
+      a.href = '/admin';
+      a.innerHTML = `${icon('users')} Manage officers`;
+      foot.insertBefore(a, logoutBtn);
+      refreshIcons();
+    }
+  }
 }
 
 // One-time Indian-flag wave across each stat tile on its FIRST hover (tricolour only).

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Officer Management · Admin</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c2138'/><path d='M16 5 25 8.5 25 15 C25 21 21 25 16 27 C11 25 7 21 7 15 L7 8.5 Z' fill='%2316b0a6'/><path d='M12.3 16 15 18.7 19.7 13.3' fill='none' stroke='%230c2138' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <script>try{var t=localStorage.getItem('sd-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="logo"><i data-lucide="shield-check"></i></div>
+    <div>
+      <h1>Officer Management</h1>
+      <div class="sub">Admin module · create, edit and remove police logins</div>
+    </div>
+    <div class="spacer"></div>
+    <a class="navlink" href="/"><i data-lucide="arrow-left"></i> Back to portal</a>
+    <button class="btn ghost sm" id="logoutBtn"><i data-lucide="log-out"></i> Log out</button>
+  </div>
+
+  <div class="admin-wrap">
+    <div class="disp-bar" style="margin-bottom:16px">
+      <div class="section-title" style="margin:0">Officer accounts <span class="chip" id="offCount">0</span></div>
+      <button class="btn primary" id="addBtn"><i data-lucide="plus"></i> Add officer</button>
+    </div>
+    <div id="officerList" class="officer-grid"></div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <!-- editor modal -->
+  <div class="modal-back" id="editBack">
+    <div class="modal" style="width:min(520px,94vw)">
+      <h3 id="editTitle">Add officer</h3>
+      <form id="officerForm">
+        <div class="grid" style="grid-template-columns:1fr 1fr; gap:12px">
+          <div><label class="field">Full name</label><input id="f_name" placeholder="e.g. Varun Narayan" /></div>
+          <div><label class="field">Username</label><input id="f_username" autocomplete="off" placeholder="login username" /></div>
+          <div><label class="field">Badge ID</label><input id="f_badge" placeholder="e.g. KL-17-2291" /></div>
+          <div><label class="field">Role</label><select id="f_role"><option value="officer">Officer</option><option value="admin">Admin</option></select></div>
+        </div>
+        <label class="field">Station</label>
+        <input id="f_station" placeholder="e.g. Mananchira Control Center, Kozhikode" />
+        <label class="field">Photo URL <span class="small">(optional)</span></label>
+        <input id="f_photo" placeholder="https://…  (leave blank for a default avatar)" />
+        <label class="field" id="pwLabel">Password</label>
+        <input id="f_password" type="password" autocomplete="new-password" placeholder="Set a password" />
+        <div class="auth-error" id="editError"></div>
+        <div class="actions" style="justify-content:flex-end; margin-top:16px">
+          <button type="button" class="btn ghost" id="editCancel">Cancel</button>
+          <button type="submit" class="btn primary" id="editSave">Save officer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@1.23.0/dist/umd/lucide.min.js"></script>
+  <script>window.addEventListener('DOMContentLoaded', () => window.lucide && lucide.createIcons());</script>
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>

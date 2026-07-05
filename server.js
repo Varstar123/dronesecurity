@@ -19,6 +19,14 @@ import { seedFleet, CITY_CENTER, LANDMARKS } from './src/seed.js';
 import { analyzeFrame, AI_MODE, AI_LABEL } from './src/ai.js';
 import { findNearbyDrones, haversineKm } from './src/geo.js';
 import { INCIDENT_TYPES, meta } from './src/incidents.js';
+import {
+  hashPassword, verifyPassword, setSession, clearSession, sessionFromReq,
+  requireAuth, requireAdmin, requireAuthPage, requireAdminPage
+} from './src/auth.js';
+import {
+  listOfficers, findByUsername, findById, createOfficer, updateOfficer,
+  removeOfficer, publicOfficer, seedDefaultAdmin, newId
+} from './src/officers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -49,13 +57,103 @@ process.on('unhandledRejection', (err) => console.error('[unhandledRejection]', 
 
 app.use(compression()); // gzip every response — must precede routes & static
 app.use(express.json({ limit: '15mb' }));
-// App files aren't content-hashed, so rely on ETag/Last-Modified revalidation (304s):
-// efficient AND always fresh after a redeploy — no stale HTML/JS.
-app.use(express.static(path.join(__dirname, 'public')));
-// Uploaded images have unique uid filenames → safe to cache hard.
+
+// ---- page routes (defined BEFORE static so login-gating can't be bypassed) ----
+const page = (f) => path.join(__dirname, 'public', f);
+app.get('/login', (_req, res) => res.sendFile(page('login.html')));
+app.get(['/', '/index.html'], requireAuthPage, (_req, res) => res.sendFile(page('index.html')));
+app.get(['/admin', '/admin.html'], requireAdminPage, (_req, res) => res.sendFile(page('admin.html')));
+app.get('/drone', (_req, res) => res.sendFile(page('drone.html'))); // drone app stays open (field device)
+
+// static assets (css/js/images) — index:false so it never serves index.html at "/"
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d', immutable: true }));
 
-app.get('/drone', (_req, res) => res.sendFile(path.join(__dirname, 'public', 'drone.html')));
+// ---- auth API -----------------------------------------------------------
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+  let o;
+  try {
+    o = await findByUsername(username);
+  } catch (e) {
+    return res.status(500).json({ error: 'Login unavailable — is the officers table created? ' + e.message });
+  }
+  if (!o || o.active === false || !(await verifyPassword(password, o.passwordHash)))
+    return res.status(401).json({ error: 'Invalid username or password' });
+  setSession(res, { id: o.id, role: o.role, username: o.username });
+  res.json(publicOfficer(o));
+});
+app.post('/api/auth/logout', (_req, res) => { clearSession(res); res.json({ ok: true }); });
+app.get('/api/auth/me', async (req, res) => {
+  const s = sessionFromReq(req);
+  if (!s) return res.status(401).json({ error: 'not authenticated' });
+  let o = null;
+  try { o = await findById(s.id); } catch { /* table may be missing */ }
+  if (!o || o.active === false) { clearSession(res); return res.status(401).json({ error: 'not authenticated' }); }
+  res.json(publicOfficer(o));
+});
+
+// ---- API access guard: everything under /api requires a login EXCEPT the shared
+// endpoints the (unauthenticated) drone app needs, and the auth endpoints themselves.
+const OPEN_API = new Set(['/api/config', '/api/drones', '/api/analyze']);
+const OPEN_API_RE = [/^\/api\/drones\/[^/]+\/live\/frame$/, /^\/api\/dispatches\/[^/]+\/frame$/];
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next();
+  if (req.path.startsWith('/api/auth/')) return next();
+  if (OPEN_API.has(req.path) || OPEN_API_RE.some((re) => re.test(req.path))) return next();
+  return requireAuth(req, res, next);
+});
+
+// ---- officers (admin module) --------------------------------------------
+app.get('/api/officers', requireAdmin, async (_req, res) => {
+  try { res.json((await listOfficers()).map(publicOfficer)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/officers', requireAdmin, async (req, res) => {
+  const { username, password, name, badgeId, station, photo, role } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+  try {
+    if (await findByUsername(username)) return res.status(409).json({ error: 'That username already exists' });
+    const o = {
+      id: newId(), username: String(username).trim(), passwordHash: await hashPassword(password),
+      name: name || username, badgeId: badgeId || '', station: station || '', photo: photo || null,
+      role: role === 'admin' ? 'admin' : 'officer', active: true, createdAt: new Date().toISOString()
+    };
+    await createOfficer(o);
+    res.json(publicOfficer(o));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.patch('/api/officers/:id', requireAdmin, async (req, res) => {
+  const { name, badgeId, station, photo, role, active, password } = req.body || {};
+  const patch = {};
+  if (name !== undefined) patch.name = name;
+  if (badgeId !== undefined) patch.badgeId = badgeId;
+  if (station !== undefined) patch.station = station;
+  if (photo !== undefined) patch.photo = photo;
+  if (role !== undefined) patch.role = role === 'admin' ? 'admin' : 'officer';
+  if (active !== undefined) patch.active = !!active;
+  if (password) patch.passwordHash = await hashPassword(password);
+  if (req.params.id === req.session.id && (patch.role === 'officer' || patch.active === false))
+    return res.status(400).json({ error: "You can't demote or deactivate your own account." });
+  try {
+    const o = await updateOfficer(req.params.id, patch);
+    if (!o) return res.status(404).json({ error: 'officer not found' });
+    res.json(publicOfficer(o));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/api/officers/:id', requireAdmin, async (req, res) => {
+  if (req.params.id === req.session.id) return res.status(400).json({ error: "You can't delete your own account." });
+  try {
+    const list = await listOfficers();
+    const target = list.find((o) => o.id === req.params.id);
+    if (!target) return res.status(404).json({ error: 'officer not found' });
+    if (target.role === 'admin' && list.filter((o) => o.role === 'admin' && o.active !== false).length <= 1)
+      return res.status(400).json({ error: 'Cannot delete the last active admin.' });
+    await removeOfficer(req.params.id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // ---- helpers -------------------------------------------------------------
 
@@ -1067,6 +1165,11 @@ function startHttps() {
 async function start() {
   await db.init(); // load state from Supabase (or local JSON)
   seedFleet(); // seed the fleet if it's empty; reconcile stale state otherwise
+  try {
+    await seedDefaultAdmin(); // ensure at least one admin login exists
+  } catch (e) {
+    console.warn('[auth] Could not initialise officer accounts (is the `officers` table created in Supabase?):', e.message);
+  }
 
   server.listen(PORT, '0.0.0.0', () => {
     const httpsOk = startHttps();

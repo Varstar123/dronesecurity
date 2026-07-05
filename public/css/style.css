@@ -690,3 +690,27 @@ html[data-theme="tricolor"] .tile.flag-wave:hover::after { opacity: 0; } /* let 
 
 /* Aurora: gradient primary buttons echo the blue→violet→magenta flow. */
 html[data-theme="aurora"] .btn.primary { background: linear-gradient(135deg, #5b8cff, #a855f7 55%, #d24bf0); border-color: #7c3aed; }
+
+/* ---- auth (login page) ---- */
+.auth-body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.auth-card { width: min(400px, 94vw); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 32px 30px; text-align: center; }
+.auth-logo { width: 60px; height: 60px; margin: 0 auto 14px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, var(--teal), var(--teal-d)); color: #fff; box-shadow: var(--shadow); }
+.auth-logo .lucide { width: 30px; height: 30px; margin: 0; }
+.auth-card h1 { font-size: 20px; margin: 0; }
+.auth-sub { color: var(--muted); font-size: 13px; margin: 4px 0 22px; }
+.auth-form { text-align: left; }
+.auth-form label.field { margin-top: 14px; }
+.auth-error { color: #ff8b8b; font-size: 13px; min-height: 18px; margin-top: 10px; line-height: 1.4; }
+.auth-btn { width: 100%; justify-content: center; margin-top: 12px; padding: 12px; }
+.auth-btn .lucide { margin-right: 6px; }
+.auth-foot { color: var(--muted); font-size: 11px; margin: 22px 0 0; }
+
+/* ---- admin: officer management ---- */
+.admin-wrap { max-width: 1000px; margin: 0 auto; padding: 24px 22px 48px; }
+.officer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.off-card { background: linear-gradient(180deg, var(--card-hi), var(--card-lo)); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: inset 0 1px 0 0 rgba(255,255,255,.05), var(--shadow); display: flex; flex-direction: column; gap: 12px; }
+.off-top { display: flex; align-items: center; gap: 12px; }
+.off-photo { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid var(--teal-d); background: var(--well); flex: none; }
+.off-id { min-width: 0; }
+.off-name { font-weight: 700; font-size: 15px; }
+.off-rows { display: flex; flex-direction: column; gap: 5px; }
