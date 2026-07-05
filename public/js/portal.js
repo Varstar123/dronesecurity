@@ -297,16 +297,18 @@ async function loadOfficer() {
   }
 }
 
-// One-time Indian-flag wave across each stat tile on its FIRST hover (tricolour only).
+// Indian-flag ribbon (saffron→white→green) sweeps a stat tile on EVERY hover (tricolour).
 function setupFlagWave() {
   document.querySelectorAll('.stats .tile').forEach((tile) => {
     if (!tile.querySelector('.flag-sweep')) tile.insertAdjacentHTML('beforeend', '<span class="flag-sweep"></span>');
-    let waved = false;
     tile.addEventListener('mouseenter', () => {
-      if (waved || document.documentElement.dataset.theme !== 'tricolor') return;
-      waved = true;
+      if (document.documentElement.dataset.theme !== 'tricolor') return;
+      tile.classList.remove('flag-wave');
+      void tile.offsetWidth; // reflow so the one-shot CSS animation restarts each hover
       tile.classList.add('flag-wave');
-      tile.addEventListener('animationend', () => tile.classList.remove('flag-wave'), { once: true });
+    });
+    tile.addEventListener('animationend', (e) => {
+      if (e.animationName === 'flag-flow') tile.classList.remove('flag-wave');
     });
   });
 }
