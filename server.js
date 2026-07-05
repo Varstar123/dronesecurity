@@ -71,11 +71,9 @@ function stripBase64(dataUrl) {
 
 // Save a captured frame. Uploads to Supabase Storage when enabled (returns a
 // public URL); otherwise writes a local file served at /uploads.
-async function saveImage(dataUrl) {
-  const b64 = stripBase64(dataUrl);
-  if (!b64) return null;
+async function storeBuffer(buffer) {
+  if (!buffer || !buffer.length) return null;
   const name = `${uid('img')}.jpg`;
-  const buffer = Buffer.from(b64, 'base64');
   if (supa.SUPA_ENABLED) {
     // Try the shared object store (with one retry). Do NOT fall back to a local
     // file — that path is stored in the shared DB and would 404 on every other
@@ -93,6 +91,15 @@ async function saveImage(dataUrl) {
   }
   await fs.promises.writeFile(path.join(UPLOAD_DIR, name), buffer); // async: don't block the event loop
   return `/uploads/${name}`;
+}
+async function saveImage(dataUrl) {
+  const b64 = stripBase64(dataUrl);
+  if (!b64) return null;
+  return storeBuffer(Buffer.from(b64, 'base64'));
+}
+// Archive a raw binary frame (from the WebSocket live/dispatch streams).
+async function saveImageBuffer(buffer) {
+  return storeBuffer(Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []));
 }
 
 // Delete stored images given their URLs (Supabase public URL or /uploads/ path).
@@ -915,6 +922,36 @@ io.on('connection', (socket) => {
     const drone = db.find('drones', droneId);
     if (!drone || !drone.liveView || !buf) return; // nobody watching → drop
     io.to('police').emit('live:frame:bin', { droneId, buf, at: new Date().toISOString() });
+  });
+
+  // Dispatch footage over the WebSocket as BINARY too — same smooth path as the live
+  // camera. Relay inline for display; archive a thumbnail occasionally (URL only).
+  socket.on('drone:dispframe', (dispatchId, droneId, buf, ack) => {
+    if (typeof ack === 'function') ack(); // release the drone's send window immediately
+    if (socket.data.droneId !== droneId) return; // only the controlling device may stream
+    const dispatch = db.find('dispatches', dispatchId);
+    const drone = db.find('drones', droneId);
+    if (!dispatch || dispatch.status !== 'active' || !drone || !buf) return;
+    const at = new Date().toISOString();
+    io.to('police').emit('dispatch:frame:bin', { dispatchId, droneId, droneName: drone.name, buf, at });
+    // Throttled fire-and-forget archival (1-in-N), URL only, for late-join / reload.
+    const n = (frameSaveCounter.get(dispatchId) || 0) + 1;
+    frameSaveCounter.set(dispatchId, n);
+    if (n % FRAME_SAVE_EVERY !== 1) return;
+    saveImageBuffer(buf)
+      .then((url) => {
+        if (!url) return;
+        const d = db.find('dispatches', dispatchId);
+        if (!d || d.status !== 'active') return;
+        d.frames.push({ id: uid('frame'), droneId, droneName: drone.name, url, at });
+        if (d.frames.length > MAX_FRAMES_PER_DISPATCH) {
+          const evicted = d.frames.slice(0, d.frames.length - MAX_FRAMES_PER_DISPATCH);
+          d.frames = d.frames.slice(-MAX_FRAMES_PER_DISPATCH);
+          deleteImagesByUrl(evicted.map((f) => f.url));
+        }
+        db.save();
+      })
+      .catch(() => {});
   });
 
   socket.on('disconnect', () => {
