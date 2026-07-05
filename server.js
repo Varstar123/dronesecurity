@@ -93,6 +93,18 @@ app.get('/api/auth/me', async (req, res) => {
   if (!o || o.active === false) { clearSession(res); return res.status(401).json({ error: 'not authenticated' }); }
   res.json(publicOfficer(o));
 });
+// A logged-in officer updates their OWN profile photo (small avatar data URI).
+app.post('/api/auth/photo', requireAuth, async (req, res) => {
+  const { photo } = req.body || {};
+  if (typeof photo !== 'string' || !photo.startsWith('data:image/'))
+    return res.status(400).json({ error: 'a valid image is required' });
+  if (photo.length > 800000) return res.status(413).json({ error: 'image too large — please pick a smaller one' });
+  try {
+    const o = await updateOfficer(req.session.id, { photo });
+    if (!o) return res.status(404).json({ error: 'officer not found' });
+    res.json(publicOfficer(o));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // ---- API access guard: everything under /api requires a login EXCEPT the shared
 // endpoints the (unauthenticated) drone app needs, and the auth endpoints themselves.
