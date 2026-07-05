@@ -616,7 +616,7 @@ function droneIcon(d) {
 }
 
 function renderMap() {
-  renderOfflineBox(); // keep the offline-drones side panel in sync (independent of Leaflet/visibility)
+  renderFleetPanel(); // keep the fleet roster side panel in sync (independent of Leaflet/visibility)
   if (!document.getElementById('map') || !window.L) return;
   const visible = document.getElementById('panel-map').classList.contains('active');
   if (!lmap) {
@@ -657,29 +657,32 @@ function renderMap() {
   if (!mapFitted && state.drones.some((d) => d.connected)) { mapFitted = true; fitMap(); } // frame the online fleet
 }
 
-// Offline drones aren't drawn on the map — they're listed in the side box. When a drone
-// comes online it drops out of here and its marker appears on the map (and vice-versa).
-function renderOfflineBox() {
+// Side panel = the full fleet roster (online + offline). The map only draws the ONLINE
+// drones; here you see all of them with live status, online ones listed first.
+function renderFleetPanel() {
   const wrap = document.getElementById('offlineBox');
   if (!wrap) return;
-  const offline = state.drones.filter((d) => !d.connected);
-  const onlineCount = state.drones.length - offline.length;
-  const items = offline.length
-    ? offline.map((d) => {
-        const seen = d.lastSeen ? 'last seen ' + timeAgo(d.lastSeen) : 'not yet connected';
-        return `<div class="ob-item">
-          <span class="icon3d i3-slate ob-ic">${icon('bot')}</span>
-          <div class="ob-id">
-            <div class="ob-name">${esc(d.name)}</div>
-            <div class="meta">${icon('map-pin')} ${esc(d.sector)}</div>
-            <div class="meta ob-seen">${seen}</div>
-          </div>
-        </div>`;
-      }).join('')
-    : `<div class="empty" style="padding:16px 4px; text-align:center">All drones are online.</div>`;
+  const drones = [...state.drones].sort((a, b) => (b.connected ? 1 : 0) - (a.connected ? 1 : 0) || a.name.localeCompare(b.name));
+  const onlineCount = state.drones.filter((d) => d.connected).length;
+  const items = drones.map((d) => {
+    const on = d.connected;
+    const dot = on ? (STATUS_COLOR[d.status] || '#16a34a') : '#64748b';
+    const bat = typeof d.battery === 'number' ? d.battery : null;
+    const line = on
+      ? `<span style="color:#7cffb0">${esc(d.status)}</span>${bat != null ? ' · ' + bat + '%' : ''}${d.liveView ? ' · ' + icon('video') + ' viewing' : ''}`
+      : (d.lastSeen ? 'offline · last seen ' + timeAgo(d.lastSeen) : 'offline · not yet connected');
+    return `<div class="ob-item${on ? ' on' : ''}">
+      <span class="icon3d ${on ? 'i3-teal' : 'i3-slate'} ob-ic">${icon('bot')}</span>
+      <div class="ob-id">
+        <div class="ob-name">${esc(d.name)} <span class="ob-dot" style="background:${dot}"></span></div>
+        <div class="meta">${icon('map-pin')} ${esc(d.sector)}</div>
+        <div class="meta ob-seen">${line}</div>
+      </div>
+    </div>`;
+  }).join('');
   wrap.innerHTML =
-    `<div class="ob-head">${icon('bot')} Offline drones <span class="ob-count">${offline.length}</span></div>` +
-    `<div class="ob-sub">${onlineCount}/${state.drones.length} online · a drone joins the map the moment its phone connects.</div>` +
+    `<div class="ob-head">${icon('radar')} Drone fleet <span class="ob-count">${onlineCount}/${state.drones.length}</span></div>` +
+    `<div class="ob-sub">Live roster — only online drones are shown on the map.</div>` +
     `<div class="ob-list">${items}</div>`;
   refreshIcons();
 }
