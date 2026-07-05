@@ -23,12 +23,12 @@
   </div>
 
   <div class="stats">
-    <div class="tile"><div class="n" id="s_drones">0</div><div class="l">Drones Online</div></div>
-    <div class="tile alert"><div class="n" id="s_pending">0</div><div class="l">Pending Alerts</div></div>
-    <div class="tile"><div class="n" id="s_escalated">0</div><div class="l">Escalated</div></div>
-    <div class="tile"><div class="n" id="s_dismissed">0</div><div class="l">Dismissed</div></div>
-    <div class="tile disp"><div class="n" id="s_dispatch">0</div><div class="l">Active Dispatches</div></div>
-    <div class="tile mf"><div class="n" id="s_mf">0</div><div class="l">Main Force Log</div></div>
+    <div class="tile"><span class="icon3d i3-teal"><i data-lucide="radar"></i></span><div class="tile-txt"><div class="n" id="s_drones">0</div><div class="l">Drones Online</div></div></div>
+    <div class="tile alert"><span class="icon3d i3-amber"><i data-lucide="bell-ring"></i></span><div class="tile-txt"><div class="n" id="s_pending">0</div><div class="l">Pending Alerts</div></div></div>
+    <div class="tile"><span class="icon3d i3-red"><i data-lucide="siren"></i></span><div class="tile-txt"><div class="n" id="s_escalated">0</div><div class="l">Escalated</div></div></div>
+    <div class="tile"><span class="icon3d i3-green"><i data-lucide="circle-check"></i></span><div class="tile-txt"><div class="n" id="s_dismissed">0</div><div class="l">Dismissed</div></div></div>
+    <div class="tile disp"><span class="icon3d i3-violet"><i data-lucide="navigation"></i></span><div class="tile-txt"><div class="n" id="s_dispatch">0</div><div class="l">Active Dispatches</div></div></div>
+    <div class="tile mf"><span class="icon3d i3-orange"><i data-lucide="clipboard-list"></i></span><div class="tile-txt"><div class="n" id="s_mf">0</div><div class="l">Main Force Log</div></div></div>
   </div>
 
   <div class="tabs">
@@ -159,10 +159,12 @@
         <h3 id="liveTitle" style="margin:0">Live camera</h3>
         <button class="btn ghost sm" id="liveClose"><i data-lucide="x"></i> Close</button>
       </div>
-      <div class="live-view">
-        <img id="liveImg" alt="live feed" />
-        <div class="live-wait" id="liveWait">Waiting for the drone's live feed… (its camera must be on)</div>
-        <span class="live-badge">● LIVE</span>
+      <div class="glow-frame" style="margin-top:12px">
+        <div class="live-view">
+          <img id="liveImg" alt="live feed" />
+          <div class="live-wait" id="liveWait">Waiting for the drone's live feed… (its camera must be on)</div>
+          <span class="live-badge">● LIVE</span>
+        </div>
       </div>
       <div class="meta" id="liveMeta" style="margin-top:8px"></div>
     </div>

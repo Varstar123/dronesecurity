@@ -59,17 +59,31 @@ h1 .lucide, h3 .lucide, .section-title .lucide { margin-right: 6px; }
 }
 .navlink:hover { background: rgba(255,255,255,.12); }
 
-/* ---------- stat tiles ---------- */
+/* ---------- stat tiles (premium) ---------- */
 .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; padding: 18px 22px 4px; }
 .tile {
-  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 14px 16px; box-shadow: var(--shadow);
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(180deg, #173049, #112235);
+  border: 1px solid var(--line); border-radius: 16px;
+  padding: 13px 15px;
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,.06), var(--shadow);
+  position: relative; overflow: hidden;
+  transition: transform .25s cubic-bezier(.22,1,.36,1), border-color .25s ease;
+  animation: rise .5s cubic-bezier(.22,1,.36,1) backwards;
 }
-.tile .n { font-size: 26px; font-weight: 800; line-height: 1; }
-.tile .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 6px; }
+.tile:hover { transform: translateY(-3px); border-color: #316192; }
+.tile:nth-child(2) { animation-delay: .05s; }
+.tile:nth-child(3) { animation-delay: .1s; }
+.tile:nth-child(4) { animation-delay: .15s; }
+.tile:nth-child(5) { animation-delay: .2s; }
+.tile:nth-child(6) { animation-delay: .25s; }
+.tile-txt { display: flex; flex-direction: column; min-width: 0; }
+.tile .n { font-size: 24px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile .l { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-top: 5px; white-space: nowrap; }
 .tile.alert .n { color: var(--sev-high); }
 .tile.disp .n { color: var(--teal); }
 .tile.mf .n { color: var(--orange); }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 
 /* ---------- tabs ---------- */
 .tabs { display: flex; gap: 8px; padding: 16px 22px 0; flex-wrap: wrap; }
@@ -258,6 +272,83 @@ details.adv[open] summary { color: var(--text); }
 .tracker-dist { font-size:22px; font-weight:800; line-height:1.1; }
 .toggle-row { display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:10px; }
 .small { font-size: 12px; color: var(--muted); }
+
+/* ==========================================================================
+   Premium UI layer — 3D icon badges, glass tiles, glow borders, hatch bars
+   ========================================================================== */
+
+/* 3D gradient icon badge (colored, layered inset highlights + drop shadow) */
+.icon3d {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 36px; height: 36px; border-radius: 11px; color: #fff;
+  background: linear-gradient(180deg, var(--i3-hi, #2bd4c8), var(--i3-lo, #0f7d76));
+  border: 1px solid rgba(0, 0, 0, .35);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, .5),
+    inset 0 5px 9px 0 rgba(255, 255, 255, .12),
+    inset 0 -4px 8px 0 rgba(0, 0, 0, .3),
+    0 2px 4px 0 rgba(0, 0, 0, .3),
+    0 6px 14px -4px rgba(0, 0, 0, .5);
+}
+.icon3d .lucide { width: 18px; height: 18px; margin: 0; stroke-width: 2.25; }
+.i3-teal   { --i3-hi: #2bd4c8; --i3-lo: #0f7d76; }
+.i3-amber  { --i3-hi: #fcd34d; --i3-lo: #d97706; }
+.i3-red    { --i3-hi: #fb7185; --i3-lo: #dc2626; }
+.i3-green  { --i3-hi: #4ade80; --i3-lo: #15803d; }
+.i3-orange { --i3-hi: #f8b26a; --i3-lo: #c2681a; }
+.i3-violet { --i3-hi: #a78bfa; --i3-lo: #7c3aed; }
+.i3-sky    { --i3-hi: #38bdf8; --i3-lo: #0284c7; }
+.i3-slate  { --i3-hi: #94a3b8; --i3-lo: #475569; }
+
+/* Hatched track + gradient fill bar (battery / confidence) */
+.hatch {
+  height: 8px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line);
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,.045), rgba(255,255,255,.045) 5px, transparent 5px, transparent 10px), #0d1c2b;
+}
+.bar-fill {
+  display: block; height: 100%; border-radius: 6px;
+  background: linear-gradient(90deg, var(--teal-d), var(--teal));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -2px 4px rgba(0,0,0,.25);
+  transition: width .7s cubic-bezier(.22, 1, .36, 1);
+}
+.bar-fill.mid { background: linear-gradient(90deg, #b45309, #f59e0b); }
+.bar-fill.low { background: linear-gradient(90deg, #991b1b, #ef4444); }
+
+/* Animated conic glow border — wraps a child element */
+@property --gb-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+.glow-frame { position: relative; border-radius: 18px; padding: 2px; isolation: isolate; box-shadow: var(--shadow); }
+.glow-frame::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; z-index: -1;
+  background: conic-gradient(from var(--gb-angle), var(--teal), var(--sev-low), #a78bfa, var(--orange), var(--teal));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: gb-spin 5s linear infinite;
+}
+.glow-frame.subtle::before { opacity: .5; animation-duration: 9s; }
+.glow-frame > .live-view,
+.glow-frame > .cam-wrap { margin: 0; border: none; border-radius: 16px; box-shadow: none; }
+@keyframes gb-spin { to { --gb-angle: 360deg; } }
+
+/* Premium fleet cards */
+.fleet-card {
+  background: linear-gradient(180deg, #16304a, #101f31); border: 1px solid var(--line);
+  border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 12px;
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,.05), var(--shadow);
+  transition: transform .25s cubic-bezier(.22, 1, .36, 1), border-color .25s ease;
+}
+.fleet-card:hover { transform: translateY(-3px); border-color: #316192; }
+.fleet-top { display: flex; align-items: center; gap: 11px; }
+.fleet-id { flex: 1; min-width: 0; }
+.fleet-name { font-weight: 700; font-size: 15px; }
+.fleet-batt { display: flex; flex-direction: column; gap: 6px; }
+.fleet-batt .meta { display: flex; justify-content: space-between; align-items: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-frame::before { animation: none; }
+  .tile, .fleet-card { animation: none; }
+}
 
 @media (max-width: 820px) {
   .stats { grid-template-columns: repeat(3, 1fr); }

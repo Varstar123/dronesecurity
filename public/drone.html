@@ -32,19 +32,21 @@
       </div>
     </div>
 
-    <div class="cam-wrap" style="margin-top:14px">
-      <video id="video" playsinline muted></video>
-      <div class="live-chip" id="liveChip">● LIVE · police viewing</div>
-      <div class="cam-off" id="camOff">
-        <div style="font-size:44px"><i data-lucide="camera"></i></div>
-        <div>Camera is off</div>
-        <button class="btn primary" id="startCam"><i data-lucide="camera"></i> Start camera</button>
+    <div class="glow-frame subtle" style="margin-top:14px">
+      <div class="cam-wrap">
+        <video id="video" playsinline muted></video>
+        <div class="live-chip" id="liveChip">● LIVE · police viewing</div>
+        <div class="cam-off" id="camOff">
+          <div style="font-size:44px"><i data-lucide="camera"></i></div>
+          <div>Camera is off</div>
+          <button class="btn primary" id="startCam"><i data-lucide="camera"></i> Start camera</button>
+        </div>
+        <div class="verdict hidden" id="verdict">
+          <div class="vt" id="vTitle"></div>
+          <div class="vi" id="vInterp"></div>
+        </div>
+        <canvas id="canvas" style="display:none"></canvas>
       </div>
-      <div class="verdict hidden" id="verdict">
-        <div class="vt" id="vTitle"></div>
-        <div class="vi" id="vInterp"></div>
-      </div>
-      <canvas id="canvas" style="display:none"></canvas>
     </div>
 
     <div class="status-strip mon" id="statusStrip">

@@ -642,19 +642,28 @@ function renderMap() {
 function droneRow(d) {
   const eff = d.connected ? d.status : 'offline';
   const col = STATUS_COLOR[eff] || '#64748b';
-  const b = d.battery;
-  const battIcon = b > 60 ? 'battery-full' : b > 25 ? 'battery-medium' : b > 0 ? 'battery-low' : 'battery';
-  return `<div class="card" style="padding:0">
-    <div class="body" style="gap:6px; padding:12px 14px">
-      <div class="row" style="justify-content:space-between">
-        <h3 style="font-size:15px">${icon('bot')} ${esc(d.name)}</h3>
-        <span class="chip" style="border-color:${col}; color:${col}">${esc(eff)}</span>
+  const b = typeof d.battery === 'number' ? d.battery : 0;
+  const battClass = b > 60 ? '' : b > 25 ? 'mid' : 'low';
+  // Icon badge colour mirrors the drone's live state.
+  const accent = eff === 'dispatched' ? 'red' : eff === 'alerting' ? 'amber' : d.connected ? 'teal' : 'slate';
+  return `<div class="fleet-card">
+    <div class="fleet-top">
+      <span class="icon3d i3-${accent}">${icon('bot')}</span>
+      <div class="fleet-id">
+        <div class="fleet-name">${esc(d.name)}</div>
+        <div class="meta">${icon('map-pin')} ${esc(d.sector)}</div>
       </div>
-      <div class="meta">${icon('map-pin')} ${esc(d.sector)}</div>
-      <div class="meta"><span style="color:${d.connected ? '#16a34a' : '#64748b'}">${icon(d.connected ? 'circle-check' : 'circle')}</span> ${d.connected ? 'online' : 'offline'} · ${icon(battIcon)} ${b}%${d.liveView ? ' · ' + icon('video') + ' viewing' : ''}</div>
-      <div class="actions">
-        <button class="btn sm ${d.connected ? 'primary' : ''}" data-live="${d.id}" ${d.connected ? '' : 'disabled'}>${icon('video')} Live view</button>
+      <span class="chip" style="border-color:${col}; color:${col}">${esc(eff)}</span>
+    </div>
+    <div class="fleet-batt">
+      <div class="meta">
+        <span><span style="color:${d.connected ? '#16a34a' : '#64748b'}">${icon(d.connected ? 'circle-check' : 'circle')}</span> ${d.connected ? 'online' : 'offline'}${d.liveView ? ' · ' + icon('video') + ' viewing' : ''}</span>
+        <span style="font-variant-numeric:tabular-nums">${b}%</span>
       </div>
+      <div class="hatch"><span class="bar-fill ${battClass}" style="width:${Math.max(4, Math.min(100, b))}%"></span></div>
+    </div>
+    <div class="actions">
+      <button class="btn sm ${d.connected ? 'primary' : ''}" data-live="${d.id}" ${d.connected ? '' : 'disabled'}>${icon('video')} Live view</button>
     </div>
   </div>`;
 }
