@@ -698,6 +698,17 @@ html[data-theme="tricolor"] .tile.flag-wave:hover::after { opacity: 0; } /* let 
 /* Aurora: gradient primary buttons echo the blue→violet→magenta flow. */
 html[data-theme="aurora"] .btn.primary { background: linear-gradient(135deg, #5b8cff, #a855f7 55%, #d24bf0); border-color: #7c3aed; }
 
+/* ---- new-alert alarm: full-screen red glow until the officer interacts ---- */
+#alertGlow { position: fixed; inset: 0; z-index: 5000; pointer-events: none; display: none; }
+body.alerting #alertGlow { display: block; animation: alert-glow 1.1s ease-in-out infinite; }
+@keyframes alert-glow {
+  0%, 100% { box-shadow: inset 0 0 70px 6px rgba(239, 68, 68, .4), inset 0 0 220px 70px rgba(239, 68, 68, .12); }
+  50%      { box-shadow: inset 0 0 150px 26px rgba(239, 68, 68, .8), inset 0 0 340px 130px rgba(239, 68, 68, .4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.alerting #alertGlow { animation: none; box-shadow: inset 0 0 120px 20px rgba(239, 68, 68, .55); }
+}
+
 /* ---- auth (login page) ---- */
 .auth-body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .auth-card { width: min(400px, 94vw); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 32px 30px; text-align: center; }

@@ -58,7 +58,7 @@ function wireSocket() {
   // Update just the one drone from the event payload and coalesce re-renders, instead
   // of refetching the whole fleet on every position ping (which scales with drones²).
   socket.on('drone:status', (drone) => { if (drone && drone.id) upsertDrone(drone); else refreshDrones(); });
-  socket.on('alert:new', (a) => { refreshAlerts(); toast(a); beep(); });
+  socket.on('alert:new', (a) => { refreshAlerts(); toast(a); startAlarm(); });
   socket.on('alert:updated', () => refreshAlerts());
   socket.on('dispatch:new', (d) => { refreshDispatches(); toast({ incidentType: d.incidentType, title: 'Drones dispatched', interpretation: `${d.assignedDrones.length} drones surrounding ${d.address || 'target'}`, sector: d.address }); });
   socket.on('dispatch:frame', onFrame); // legacy base64 path (fallback)
@@ -1070,4 +1070,43 @@ function beep() {
     o.type = 'sine'; o.frequency.value = 880; g.gain.value = 0.05;
     o.start(); o.stop(actx.currentTime + 0.15);
   } catch (e) {}
+}
+
+// ---- new-alert alarm: looping siren + full-screen red glow, until acknowledged ----
+let alarmOn = false, alarmTimer = null;
+const ALARM_EVENTS = ['mousemove', 'keydown', 'click', 'touchstart', 'wheel'];
+function alarmTone() {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const t = actx.currentTime;
+    [[0, 880], [0.22, 660]].forEach(([off, freq]) => { // two-tone siren beep
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'square'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t + off);
+      g.gain.exponentialRampToValueAtTime(0.22, t + off + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + off + 0.19);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t + off); o.stop(t + off + 0.2);
+    });
+  } catch (e) {}
+}
+function startAlarm() {
+  document.body.classList.add('alerting'); // red glow
+  if (alarmOn) return; // already alarming — keep going until acknowledged
+  alarmOn = true;
+  alarmTone();
+  alarmTimer = setInterval(alarmTone, 1500);
+  // Grace period so a mouse move happening at the trigger instant doesn't cancel it,
+  // then ANY interaction (the officer is back at the desk) clears it.
+  setTimeout(() => {
+    if (alarmOn) ALARM_EVENTS.forEach((ev) => window.addEventListener(ev, stopAlarm, { once: true, passive: true }));
+  }, 700);
+}
+function stopAlarm() {
+  if (!alarmOn && !document.body.classList.contains('alerting')) return;
+  alarmOn = false;
+  document.body.classList.remove('alerting');
+  if (alarmTimer) { clearInterval(alarmTimer); alarmTimer = null; }
+  ALARM_EVENTS.forEach((ev) => window.removeEventListener(ev, stopAlarm));
 }
