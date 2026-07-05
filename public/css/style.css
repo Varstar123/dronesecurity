@@ -58,6 +58,27 @@ html[data-theme="emerald"] {
   --input-bg: #0b1a15; --well: #08120e; --cam-bg: #07110d; --map-bg: #07120e;
   --hover-border: #2f6a56; --accent-rgb: 16, 185, 129;
 }
+/* Tricolour — the one LIGHT theme (Indian flag: saffron / white / green + sky) */
+html[data-theme="tricolor"] {
+  --bg: #e6f4ff; --panel: #ffffff; --panel-2: #f0f7ff; --line: #cfe0f0;
+  --text: #14243a; --muted: #5a7089;
+  --teal: #138808; --teal-d: #0f6b06; --orange: #ff9933;
+  --navy: #ffffff; --navy-2: #eaf3ff; --bg-glow: #d6ecff;
+  --elev-hi: #ffffff; --elev-lo: #eef6ff; --card-hi: #ffffff; --card-lo: #f0f7ff;
+  --input-bg: #f7fbff; --well: #e9f2fb; --cam-bg: #eaf2fb; --map-bg: #dfeaf5;
+  --hover-border: #8fbf6a; --accent-rgb: 19, 136, 8;
+  --shadow: 0 6px 22px rgba(20, 50, 90, .12);
+}
+/* Aurora — near-black with a blue→violet→magenta→cyan neon identity */
+html[data-theme="aurora"] {
+  --bg: #0a0a12; --panel: #14141f; --panel-2: #1e1e2e; --line: #2f2f47;
+  --text: #ecebfb; --muted: #a7a4c8;
+  --teal: #b06bf5; --teal-d: #7c3ce0; --orange: #f0a63c;
+  --navy: #10101c; --navy-2: #191a2b; --bg-glow: #241a4a;
+  --elev-hi: #18182a; --elev-lo: #101019; --card-hi: #19192c; --card-lo: #101019;
+  --input-bg: #101019; --well: #0b0b14; --cam-bg: #08080f; --map-bg: #08080f;
+  --hover-border: #4a3f7a; --accent-rgb: 176, 107, 245;
+}
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -546,3 +567,31 @@ details.adv[open] summary { color: var(--text); }
   .topbar h1 { font-size: 15px; }
   .theme-btn > span:not(.theme-cur) { display: none; } /* swatch-only on small screens */
 }
+
+/* ==========================================================================
+   Theme readability fixes + per-theme flourishes
+   ========================================================================== */
+
+/* These components have a FIXED dark background on every theme (emergency red /
+   video overlays), so force light text regardless of the palette. */
+.btn.primary, .btn.danger, .btn.warn { color: #fff; }
+.verdict .vt { color: #f4f8ff; }
+.dispatch-banner, .status-strip.disp { color: #ffe6ea; }
+.dispatch-banner .small { color: #f3c8cc; }
+
+/* Tricolour is the one LIGHT theme: darken text sitting on light cards, and tint
+   the white-overlay interactions (which would be invisible on white) with green. */
+html[data-theme="tricolor"] .interp,
+html[data-theme="tricolor"] .ac-snippet { color: #33465c; }
+html[data-theme="tricolor"] .form-card label.field { color: #4a637f; }
+html[data-theme="tricolor"] .navlink,
+html[data-theme="tricolor"] .theme-btn { background: rgba(19, 136, 8, .07); }
+html[data-theme="tricolor"] .navlink:hover,
+html[data-theme="tricolor"] .theme-btn:hover { background: rgba(19, 136, 8, .13); }
+html[data-theme="tricolor"] .tab:hover { background: rgba(19, 136, 8, .06); }
+html[data-theme="tricolor"] .ac-head:hover { background: rgba(19, 136, 8, .05); }
+html[data-theme="tricolor"] .ob-item { background: rgba(19, 136, 8, .04); }
+html[data-theme="tricolor"] .tile:hover::after { opacity: 0; } /* white sheen washes out on light */
+
+/* Aurora: gradient primary buttons echo the blue→violet→magenta flow. */
+html[data-theme="aurora"] .btn.primary { background: linear-gradient(135deg, #5b8cff, #a855f7 55%, #d24bf0); border-color: #7c3aed; }
