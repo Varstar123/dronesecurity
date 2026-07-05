@@ -522,7 +522,9 @@ function renderMF() {
           <div class="interp" style="margin-top:4px">“${esc(r.conveyed)}”</div>
         </div>`;
       }).join('')
-    : `<div class="empty">Nothing has been sent to the main force yet.</div>`;
+    : `<div class="empty ripple-empty">Nothing has been sent to the main force yet.</div>`;
+  const mfEmpty = wrap.querySelector('.ripple-empty');
+  if (mfEmpty) attachAsciiRipple(mfEmpty, { auto: true });
   refreshIcons();
 }
 
