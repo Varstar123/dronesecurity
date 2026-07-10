@@ -300,14 +300,15 @@ async function loadOfficer() {
   }
 }
 
-// Indian-flag ribbon (saffron→white→green) sweeps a stat tile on EVERY hover (tricolour).
+// Tricolour theme: an Indian-flag ribbon (saffron→white→green) sweeps a stat tile on the
+// FIRST hover only. Every later hover falls through to the plain saffron sheen
+// (.tile:hover::after), so the tricolour flourish is a one-time reveal per tile.
 function setupFlagWave() {
   document.querySelectorAll('.stats .tile').forEach((tile) => {
     if (!tile.querySelector('.flag-sweep')) tile.insertAdjacentHTML('beforeend', '<span class="flag-sweep"></span>');
     tile.addEventListener('mouseenter', () => {
-      if (document.documentElement.dataset.theme !== 'tricolor') return;
-      tile.classList.remove('flag-wave');
-      void tile.offsetWidth; // reflow so the one-shot CSS animation restarts each hover
+      if (document.documentElement.dataset.theme !== 'tricolor' || tile.dataset.waved) return;
+      tile.dataset.waved = '1'; // one tricolour sweep per tile; subsequent hovers get the orange sheen
       tile.classList.add('flag-wave');
     });
     tile.addEventListener('animationend', (e) => {
