@@ -1,4 +1,4 @@
-import { api, esc, timeAgo, fmtTime, loadConfig, CONFIG, incidentMeta, SEV_CLASS, icon, incidentIcon, refreshIcons, initThemePicker } from '/js/common.js';
+import { api, esc, timeAgo, fmtTime, loadConfig, CONFIG, incidentMeta, SEV_CLASS, icon, incidentIcon, refreshIcons, initThemePicker, DEFAULT_THEME } from '/js/common.js';
 import { attachAsciiRipple } from '/js/ascii-ripple.js';
 
 const socket = io();
@@ -270,7 +270,10 @@ async function loadOfficer() {
   let me;
   try { me = await api('/api/auth/me'); }
   catch { location.href = '/login'; return; }
-  if (me.theme && themeCtl) themeCtl.apply(me.theme); // apply this officer's saved theme
+  // Reconcile the theme to THIS officer's account on every login: apply their saved
+  // theme, or reset to the default when they have none — so on a shared control-center
+  // browser one officer never inherits the previous officer's cached choice.
+  if (themeCtl) themeCtl.apply(me.theme || DEFAULT_THEME);
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('sbName', me.name || me.username);
   set('sbId', me.badgeId || '—');
