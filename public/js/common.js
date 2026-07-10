@@ -79,8 +79,9 @@ export const THEMES = [
   { id: 'tricolor', name: 'Tricolour', sw: ['#ff9933', '#138808'] },
   { id: 'aurora', name: 'Aurora', sw: ['#5b8cff', '#d24bf0'] }
 ];
+export const DEFAULT_THEME = 'midnight';
 export function currentTheme() {
-  try { return localStorage.getItem('sd-theme') || 'midnight'; } catch { return 'midnight'; }
+  try { return localStorage.getItem('sd-theme') || DEFAULT_THEME; } catch { return DEFAULT_THEME; }
 }
 export function applyTheme(id) {
   document.documentElement.dataset.theme = id;
