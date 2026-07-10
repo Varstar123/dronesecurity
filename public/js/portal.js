@@ -5,8 +5,8 @@ const socket = io();
 const state = { drones: [], alerts: [], dispatches: [], mf: [], pendingTarget: null, liveDroneId: null };
 
 // ---------- boot ----------
-init();
 let themeCtl;
+init();
 async function init() {
   setupSidebar();
   setupPhotoEdit(); // let the officer change their own avatar
