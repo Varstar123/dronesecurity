@@ -1,0 +1,282 @@
+/* Public landing page ("Eye of the City") — standalone dark aesthetic.
+   Deliberately independent of style.css: this page has no theme picker and must
+   not inherit the control-center palette. */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink: #050505;
+  --red: #dc2626;
+  --sans: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --mono: 'Consolas', ui-monospace, 'Courier New', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--sans);
+  overflow-x: hidden;
+}
+body.locked { overflow: hidden; } /* no scrolling behind the preloader */
+
+::selection { background: var(--red); color: #fff; }
+
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* outlined display type (hero) */
+.stroke-text { -webkit-text-stroke: 1px #fff; color: transparent; }
+
+/* ---------- terminal preloader ---------- */
+.preloader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #000;
+  display: flex; flex-direction: column;
+  padding: 2rem;
+  font-family: var(--mono); font-size: .95rem;
+  overflow: hidden;
+  /* GSAP animates this to a zero-height polygon to "cut" the page open */
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+}
+.pre-lines { flex: 1; overflow-y: auto; }
+.pre-line { display: flex; margin-bottom: .5rem; }
+.pre-line .n { margin-right: 1rem; color: rgba(255, 255, 255, .3); }
+.pre-line .t { color: #fff; }
+.pre-cursor { color: var(--red); margin-top: 1rem; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.pre-brand { position: absolute; right: 2rem; bottom: 2rem; text-align: right; }
+.pre-brand h1 {
+  font-size: clamp(2rem, 6vw, 3.75rem); font-weight: 900;
+  text-transform: uppercase; letter-spacing: -.04em; opacity: .2;
+}
+.pre-brand p { font-size: .7rem; color: rgba(255, 255, 255, .4); }
+
+/* CRT scanlines + RGB bleed */
+.crt {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, .25) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, .06), rgba(0, 255, 0, .02), rgba(0, 0, 255, .06));
+  background-size: 100% 2px, 3px 100%;
+}
+
+/* ---------- film grain (inline SVG turbulence — no external asset) ---------- */
+.noise {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- page shell ---------- */
+.content { opacity: 0; transition: opacity 1s ease; position: relative; z-index: 1; }
+.content.ready { opacity: 1; }
+
+.topbar {
+  position: fixed; top: 0; left: 0; width: 100%; z-index: 50;
+  padding: 2rem;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  font-family: var(--mono); font-size: .75rem;
+  mix-blend-mode: difference; /* stays legible over the white footer */
+  pointer-events: none;
+}
+.topbar-right { text-align: right; }
+.rec { color: var(--red); animation: blink 1.4s steps(1) infinite; }
+
+/* Always-visible sign-in — solid, so it reads on black AND on the white footer. */
+.signin {
+  position: fixed; right: 1.5rem; bottom: 1.5rem; z-index: 60;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  padding: .85rem 1.25rem;
+  background: rgba(5, 5, 5, .85);
+  border: 1px solid var(--red);
+  color: #fff; text-decoration: none;
+  font-family: var(--mono); text-transform: uppercase;
+  backdrop-filter: blur(6px);
+  transition: background .35s ease, color .35s ease, transform .35s ease;
+}
+.signin:hover { background: var(--red); transform: translateY(-2px); }
+.signin-label { font-size: .8rem; font-weight: 700; letter-spacing: .12em; }
+.signin-sub { font-size: .6rem; letter-spacing: .3em; color: rgba(255, 255, 255, .55); }
+.signin:hover .signin-sub { color: rgba(255, 255, 255, .9); }
+
+/* ---------- hero ---------- */
+.hero {
+  height: 100vh; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.hero-ghost {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  opacity: .1; pointer-events: none;
+}
+.hero-ghost span {
+  font-size: 30vw; font-weight: 700; line-height: 1;
+  letter-spacing: -.05em; color: var(--red); filter: blur(4px);
+}
+.hero-inner {
+  position: relative; z-index: 10; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
+}
+.hero-sub {
+  font-family: var(--mono); color: var(--red);
+  font-size: .8rem; letter-spacing: .5em; text-transform: uppercase;
+}
+.hero-title {
+  font-size: clamp(3.5rem, 11vw, 8rem); font-weight: 900;
+  text-transform: uppercase; letter-spacing: -.045em; line-height: .95;
+}
+
+/* ---------- about ---------- */
+.about {
+  min-height: 50vh; position: relative; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6rem 2rem;
+}
+.about-inner {
+  max-width: 64rem; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 2rem;
+}
+.rule { display: block; width: 4rem; height: 4px; background: var(--red); }
+.about-text {
+  font-family: var(--mono); font-weight: 500;
+  font-size: clamp(1.25rem, 3.2vw, 2.75rem); line-height: 1.25;
+  text-transform: uppercase; color: rgba(255, 255, 255, .9);
+}
+
+/* ---------- sliced image gallery ---------- */
+.gallery { position: relative; z-index: 10; padding: 6rem 0; }
+
+.sliced {
+  position: relative; width: 100%; height: 80vh;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; margin: 6rem 0;
+}
+.sliced-box { position: relative; width: 90%; height: 70%; }
+
+.slice { position: absolute; inset: 0; z-index: 10; overflow: hidden; }
+/* the diagonal cut: the two halves meet on a slightly tilted line */
+.slice-top { clip-path: polygon(0 0, 100% 0, 100% 45%, 0 55%); }
+.slice-bottom { clip-path: polygon(0 55%, 100% 45%, 100% 100%, 0 100%); }
+.slice img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  filter: grayscale(1) contrast(1.25) brightness(.75);
+  transition: filter .7s ease;
+}
+.sliced:hover .slice img { filter: grayscale(0) contrast(1.1) brightness(.9); }
+
+.cut {
+  position: absolute; top: 50%; left: -10%; right: -10%; height: 1px; z-index: 20;
+  background: rgba(255, 255, 255, .2); filter: blur(1px);
+  transform: rotate(-2deg); opacity: 0; transition: opacity .5s ease;
+}
+.sliced:hover .cut { opacity: 1; }
+
+.slice-title {
+  position: absolute; top: 50%; left: 50%; z-index: 30;
+  transform: translate(-50%, -50%);
+  font-family: var(--mono); font-weight: 700;
+  font-size: 15vw; line-height: 1; color: #fff;
+  mix-blend-mode: difference; pointer-events: none; white-space: nowrap;
+}
+/* bottom-LEFT so it never collides with the fixed sign-in button */
+.sliced-id {
+  position: absolute; left: 2.5rem; bottom: 2.5rem;
+  font-family: var(--mono); font-size: .7rem; color: rgba(255, 255, 255, .5);
+}
+
+/* ---------- features ---------- */
+.features {
+  min-height: 100vh; position: relative; z-index: 10;
+  padding: 6rem 2rem; display: flex; flex-direction: column; justify-content: center;
+}
+.features-inner { max-width: 80rem; margin: 0 auto; width: 100%; }
+.features-head {
+  font-size: clamp(2rem, 5vw, 3.75rem); font-weight: 900;
+  text-transform: uppercase; letter-spacing: -.04em;
+  text-align: center; margin-bottom: 4rem;
+}
+.features-sub {
+  display: block; margin-top: 1rem;
+  font-family: var(--mono); font-size: .8rem; font-weight: 400;
+  color: var(--red); letter-spacing: .5em;
+}
+.features-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+
+.feature {
+  position: relative; overflow: hidden; cursor: default;
+  border: 1px solid rgba(255, 255, 255, .1);
+  padding: 2rem;
+  transition: background .5s ease;
+}
+.feature:hover { background: rgba(255, 255, 255, .02); }
+
+/* the two light beams that sweep the border on hover */
+.feature::before, .feature::after {
+  content: ''; position: absolute; opacity: 0; pointer-events: none;
+  transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+}
+.feature::before {
+  top: 0; left: 0; width: 100%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--red), transparent);
+  transform: translateX(-100%);
+}
+.feature::after {
+  top: 0; bottom: 0; left: 0; width: 1px;
+  background: linear-gradient(180deg, transparent, var(--red), transparent);
+  transform: translateY(-100%); transition-delay: .1s;
+}
+.feature:hover::before { opacity: 1; transform: translateX(100%); }
+.feature:hover::after { opacity: 1; transform: translateY(100%); }
+
+.feature h4 {
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem); font-weight: 900;
+  text-transform: uppercase; margin-bottom: 1.5rem;
+  transition: color .5s ease;
+}
+.feature:hover h4 { color: var(--red); }
+.feature p {
+  font-family: var(--mono); font-size: .9rem;
+  color: rgba(255, 255, 255, .5); transition: color .5s ease;
+}
+.feature:hover p { color: rgba(255, 255, 255, .8); }
+.feature-access {
+  margin-top: 3rem;
+  font-family: var(--mono); font-size: .7rem;
+  color: rgba(255, 255, 255, .2); transition: color .5s ease;
+}
+.feature:hover .feature-access { color: rgba(220, 38, 38, .5); }
+
+/* ---------- footer ---------- */
+.foot {
+  height: 50vh; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; color: #000; text-align: center;
+}
+.foot-title {
+  font-size: clamp(2.5rem, 8vw, 6rem); font-weight: 900;
+  text-transform: uppercase; margin-bottom: 1rem;
+}
+.foot-sub { font-family: var(--mono); font-size: .85rem; }
+
+/* ---------- reveal primitives (GSAP animates these to visible) ---------- */
+[data-reveal-up] { opacity: 0; }
+.type-char { display: inline-block; opacity: 0; }
+
+/* ---------- larger screens ---------- */
+@media (min-width: 768px) {
+  .preloader { padding: 4rem; font-size: 1rem; }
+  .topbar { font-size: .875rem; }
+  .sliced { height: 100vh; }
+  .sliced-box { width: 60%; height: 80%; }
+  .feature { padding: 3rem; }
+  .features-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- accessibility ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .rec, .pre-cursor { animation: none; }
+  .content { opacity: 1; }
+  [data-reveal-up], .type-char { opacity: 1 !important; }
+}
