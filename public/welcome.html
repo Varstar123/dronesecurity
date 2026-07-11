@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eye of the City · Smart City Drone Security</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-1 -1 26 26' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M19.07 4.93A10 10 0 0 0 6.99 3.34'/><path d='M4 6h.01'/><path d='M2.29 9.62A10 10 0 1 0 21.31 8.35'/><path d='M16.24 7.76A6 6 0 1 0 8.23 16.67'/><path d='M12 18h.01'/><path d='M17.99 11.66A6 6 0 0 1 15.77 16.67'/><circle cx='12' cy='12' r='2'/><path d='m13.41 10.59 5.66-5.66'/></svg>" />
+  <!-- Standalone aesthetic: this page does NOT load the portal's themed style.css. -->
+  <link rel="stylesheet" href="/css/welcome.css" />
+</head>
+<body>
+
+  <!-- ---------- terminal preloader ---------- -->
+  <div class="preloader" id="preloader">
+    <div class="pre-lines no-scrollbar" id="bootLines"></div>
+    <div class="pre-brand">
+      <h1>SMARTDRONE</h1>
+      <p>DRONE_NET v1.0</p>
+    </div>
+    <div class="crt"></div>
+  </div>
+
+  <!-- film-grain overlay -->
+  <div class="noise"></div>
+
+  <!-- ---------- page ---------- -->
+  <div class="content" id="content">
+
+    <header class="topbar">
+      <div>
+        <p>PROTOCOL</p>
+        <p>DRONE_NET</p>
+      </div>
+      <div class="topbar-right">
+        <p>KOZHIKODE // CONTROL CENTER</p>
+        <p class="rec">RECORDING...</p>
+      </div>
+    </header>
+
+    <!-- Always-visible way back to the real control center. -->
+    <a class="signin" href="/login">
+      <span class="signin-label">SIGN IN</span>
+      <span class="signin-sub">Control Center</span>
+    </a>
+
+    <section class="hero">
+      <div class="hero-ghost"><span>DRONE</span></div>
+      <div class="hero-inner">
+        <span class="hero-sub" data-type-reveal>Smart City Drone Security</span>
+        <h1 class="hero-title" data-reveal-up data-delay="0.2">EYE OF THE <br /> <span class="stroke-text">CITY</span></h1>
+      </div>
+    </section>
+
+    <section class="about">
+      <div class="about-inner">
+        <div data-reveal-up><span class="rule"></span></div>
+        <h3 class="about-text" data-type-reveal>AUTONOMOUS DRONES PATROL THE CITY. AI VISION READS EVERY FRAME AND FLAGS WHAT MATTERS — FIRE, WEAPONS, ACCIDENTS, CROWDS. AN OFFICER REVIEWS. THE FLEET IS DISPATCHED. THE FOOTAGE STREAMS BACK LIVE.</h3>
+      </div>
+    </section>
+
+    <!-- sliced image gallery — built by welcome.js from the IMAGES array -->
+    <section class="gallery" id="gallery"></section>
+
+    <section class="features">
+      <div class="features-inner">
+        <h2 class="features-head">
+          SYSTEM CAPABILITIES
+          <span class="features-sub">DETECT · REVIEW · DISPATCH · RESPOND</span>
+        </h2>
+        <!-- feature cards — built by welcome.js from the FEATURES array -->
+        <div class="features-grid" id="featuresGrid"></div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <div>
+        <h2 class="foot-title" data-type-reveal>END OF TRANSMISSION</h2>
+        <div class="foot-sub" data-type-reveal>SMART CITY DRONE SECURITY · GROUP 17 · GEC KOZHIKODE</div>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://unpkg.com/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script type="module" src="/js/welcome.js"></script>
+</body>
+</html>

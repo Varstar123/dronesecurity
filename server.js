@@ -64,6 +64,7 @@ app.get('/login', (_req, res) => res.sendFile(page('login.html')));
 app.get(['/', '/index.html'], requireAuthPage, (_req, res) => res.sendFile(page('index.html')));
 app.get(['/admin', '/admin.html'], requireAdminPage, (_req, res) => res.sendFile(page('admin.html')));
 app.get('/drone', (_req, res) => res.sendFile(page('drone.html'))); // drone app stays open (field device)
+app.get('/welcome', (_req, res) => res.sendFile(page('welcome.html'))); // public landing page — signs visitors through to /login
 
 // static assets (css/js/images) — index:false so it never serves index.html at "/"
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
