@@ -10,7 +10,7 @@ const BOOT_SEQUENCE = [
   'ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ...',
   'ЗАГРУЗКА ПРОТОКОЛА: ПАТРУЛЬ',
   'СВЯЗЬ С ЦЕНТРОМ УПРАВЛЕНИЯ: OK',
-  'ИИ-ЗРЕНИЕ: CLAUDE VISION // АКТИВНО',
+  'ИИ-ЗРЕНИЕ: НЕЙРОСЕТЬ // АКТИВНО',
   'GPS: КОЖИКОДЕ 11.25°N 75.78°E',
   'ФЛОТ: 4 ДРОНА В ВОЗДУХЕ',
   'РЕЖИМ: НАБЛЮДЕНИЕ',
@@ -27,7 +27,7 @@ const IMAGES = [
 
 // The system's four real capabilities.
 const FEATURES = [
-  { title: 'DETECTION', description: 'Claude vision reads every captured frame and flags 17 incident types — fire, weapons, accidents, crowds — in seconds.' },
+  { title: 'DETECTION', description: 'On-board AI vision reads every captured frame and flags 17 incident types — fire, weapons, accidents, crowds — in seconds.' },
   { title: 'REVIEW', description: 'Drones are not infallible, so every alert reaches a duty officer: escalate to the main force, or dismiss and resume the patrol.' },
   { title: 'DISPATCH', description: 'Enter a location and the nearest drones are dispatched automatically to surround it.' },
   { title: 'LIVE FEED', description: 'Live camera feeds stream straight back to the control center over a real-time socket.' }
