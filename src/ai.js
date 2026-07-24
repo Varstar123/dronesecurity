@@ -27,7 +27,7 @@ export const AI_MODE = decideProvider();
 const CLAUDE_MODEL = process.env.AI_MODEL || 'claude-opus-4-8';
 // Groq multimodal model. If Groq deprecates this, set GROQ_MODEL in .env to a
 // current vision model from https://console.groq.com/docs/models
-const GROQ_MODEL = process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
+const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.6-27b';
 
 export const AI_LABEL =
   AI_MODE === 'groq' ? 'Groq Vision' : AI_MODE === 'claude' ? 'Claude Vision' : 'Standby';
@@ -145,7 +145,10 @@ async function analyzeGroq(imageBase64, context) {
   const body = {
     model: GROQ_MODEL,
     temperature: 0.2,
-    max_tokens: 500,
+    max_tokens: 800,
+    // qwen3.6-27b is a reasoning model — without this its <think> trace eats the
+    // token budget and/or leaks into the content, breaking the JSON parse below.
+    reasoning_format: 'hidden',
     messages: [
       {
         role: 'system',
