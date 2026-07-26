@@ -14,7 +14,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: GROQ_MODEL
-        value: meta-llama/llama-4-scout-17b-16e-instruct
+        value: qwen/qwen3.6-27b
       - key: GROQ_API_KEY
         sync: false # paste in the Render dashboard
       - key: SUPABASE_URL
