@@ -145,9 +145,14 @@ async function analyzeGroq(imageBase64, context) {
   const body = {
     model: GROQ_MODEL,
     temperature: 0.2,
-    max_tokens: 800,
-    // qwen3.6-27b is a reasoning model — without this its <think> trace eats the
-    // token budget and/or leaks into the content, breaking the JSON parse below.
+    max_tokens: 500,
+    // qwen3.6-27b is a reasoning model. Its hidden <think> trace is unbounded and can
+    // burn the whole max_tokens budget before writing the JSON answer, leaving an
+    // empty/truncated response — reasoning_effort: 'none' turns that off entirely,
+    // which also keeps per-request token cost low against Groq's 8k TPM cap on this
+    // preview model. reasoning_format stays as a defensive fallback in case reasoning
+    // ever gets re-enabled.
+    reasoning_effort: 'none',
     reasoning_format: 'hidden',
     messages: [
       {

@@ -285,7 +285,7 @@ function showVerdict(a) {
 function updateAuto() {
   if (st.autoTimer) clearInterval(st.autoTimer), (st.autoTimer = null);
   if ($('autoChk').checked && st.stream && !st.dispatch) {
-    const ms = Number($('interval').value) || 8000;
+    const ms = Number($('interval').value) || 30000;
     st.autoTimer = setInterval(scan, ms);
     scan();
   }
