@@ -1,5 +1,7 @@
 # 🛰️ Smart City Drone Security System
 
+**Live demo:** https://dronesecurity.onrender.com/welcome
+
 **S7 B.Tech Main Project · Group 17 · Government Engineering College, Kozhikode**
 
 An AI-based drone surveillance and emergency-response system for a smart city.
