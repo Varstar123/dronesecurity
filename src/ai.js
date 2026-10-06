@@ -27,7 +27,7 @@ export const AI_MODE = decideProvider();
 const CLAUDE_MODEL = process.env.AI_MODEL || 'claude-opus-4-8';
 // Groq multimodal model. If Groq deprecates this, set GROQ_MODEL in .env to a
 // current vision model from https://console.groq.com/docs/models
-const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.6-27b';
+const GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
 
 export const AI_LABEL =
   AI_MODE === 'groq' ? 'Groq Vision' : AI_MODE === 'claude' ? 'Claude Vision' : 'Standby';
