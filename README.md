@@ -152,7 +152,7 @@ See [`.env.example`](.env.example). Common ones:
 | Variable | Purpose |
 |----------|---------|
 | `GROQ_API_KEY` | Enables **Groq** vision (fast, free tier). Preferred provider. |
-| `GROQ_MODEL` | Groq vision model (default `meta-llama/llama-4-scout-17b-16e-instruct`). |
+| `GROQ_MODEL` | Groq vision model (default `qwen/qwen3.8-27b`). |
 | `ANTHROPIC_API_KEY` | Enables **Claude** vision (alternative). Unset + no Groq = simulation. |
 | `AI_PROVIDER` | Force `groq`, `claude`, or `mock`. |
 | `SUPABASE_URL` / `SUPABASE_SECRET_KEY` | Use cloud Postgres + image Storage (else local JSON). |

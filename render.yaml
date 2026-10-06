@@ -14,7 +14,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: GROQ_MODEL
-        value: qwen/qwen3.6-27b
+        value: qwen/qwen3.8-27b
       - key: GROQ_API_KEY
         sync: false # paste in the Render dashboard
       - key: SUPABASE_URL

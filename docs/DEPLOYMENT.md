@@ -84,7 +84,7 @@ same keys in the platform dashboard. `dotenv` loads `.env` into `process.env`
 | Variable | Required? | Purpose | Default (source) |
 |----------|-----------|---------|------------------|
 | `GROQ_API_KEY` | No | Enables **Groq** vision (preferred provider; auto-selected when present). | none → falls back to Claude/mock (`ai.js:16-23`) |
-| `GROQ_MODEL` | No | Groq vision model id. | `meta-llama/llama-4-scout-17b-16e-instruct` (`ai.js:30`, `.env.example:9-11`) |
+| `GROQ_MODEL` | No | Groq vision model id. | `qwen/qwen3.8-27b` (`ai.js:30`, `.env.example:9-11`) |
 | `ANTHROPIC_API_KEY` | No | Enables **Claude** vision (used when Groq key absent). | none (`.env.example:14`) |
 | `AI_MODEL` | No | Claude model id (only when provider = claude). | `claude-opus-4-8` (`ai.js:27`, `.env.example:15`) |
 | `AI_PROVIDER` | No | Force a provider, overriding key auto-detection: `groq` \| `claude` \| `mock`. | unset → auto-detect (`ai.js:16`, `.env.example:17`) |

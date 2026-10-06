@@ -151,7 +151,7 @@ Note: when **both** keys are present in auto mode, **Groq wins over Claude** (`a
 ### Configuration constants
 
 - `CLAUDE_MODEL = process.env.AI_MODEL || 'claude-opus-4-8'` — note the env var is `AI_MODEL`, not a Claude-specific name (`ai.js:27`).
-- `GROQ_MODEL = process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct'` (`ai.js:30`).
+- `GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b'` (`ai.js:30`).
 
 ### Internal pipeline
 

@@ -452,7 +452,7 @@ flowchart TD
 Groq wins over Claude when both keys exist (`src/ai.js:21-22`). `AI_LABEL` is
 `'Groq Vision'` / `'Claude Vision'` / `'Standby'` (`src/ai.js:32-33`). Models are overridable:
 `CLAUDE_MODEL = process.env.AI_MODEL || 'claude-opus-4-8'` (`:27`) and
-`GROQ_MODEL = process.env.GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct'` (`:30`).
+`GROQ_MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b'` (`:30`).
 
 - **`analyzeGroq`** (`src/ai.js:144-191`) POSTs to Groq's OpenAI-compatible endpoint with a
   15 s `AbortController` timeout (`:168-183`), `temperature:0.2`, `max_tokens:500`, and a

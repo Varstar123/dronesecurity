@@ -146,7 +146,7 @@ async function analyzeGroq(imageBase64, context) {
     model: GROQ_MODEL,
     temperature: 0.2,
     max_tokens: 500,
-    // qwen3.6-27b is a reasoning model. Its hidden <think> trace is unbounded and can
+    // Qwen 3.8 is a reasoning model. Its hidden <think> trace can
     // burn the whole max_tokens budget before writing the JSON answer, leaving an
     // empty/truncated response — reasoning_effort: 'none' turns that off entirely,
     // which also keeps per-request token cost low against Groq's 8k TPM cap on this

@@ -11,7 +11,7 @@ The application loads variables from a local `.env` file via `dotenv` and from t
 | Variable | Required? | Subsystem | Purpose | Default (if unset) | Example |
 |---|---|---|---|---|---|
 | `GROQ_API_KEY` | No | AI | Enables the Groq vision provider (preferred when set) | none → falls through provider auto-detect | `gsk_...` |
-| `GROQ_MODEL` | No | AI | Groq vision model id | `meta-llama/llama-4-scout-17b-16e-instruct` | `meta-llama/llama-4-scout-17b-16e-instruct` |
+| `GROQ_MODEL` | No | AI | Groq vision model id | `qwen/qwen3.8-27b` | `qwen/qwen3.8-27b` |
 | `ANTHROPIC_API_KEY` | No | AI | Enables the Anthropic Claude vision provider | none → falls through provider auto-detect | `sk-ant-...` |
 | `AI_MODEL` | No | AI | Claude model id (used only when provider = claude) | `claude-opus-4-8` | `claude-opus-4-8` |
 | `AI_PROVIDER` | No | AI | Force a provider, overriding key auto-detection | unset → auto-detect | `groq` \| `claude` \| `mock` |
@@ -91,8 +91,8 @@ Exact call sites:
 
 ### `GROQ_MODEL`
 - **Required?** No.
-- **Purpose:** Overrides the Groq vision model id. Default `meta-llama/llama-4-scout-17b-16e-instruct` (`src/ai.js:30`). Useful if Groq deprecates the default model.
-- **Example:** `GROQ_MODEL=meta-llama/llama-4-scout-17b-16e-instruct`
+- **Purpose:** Overrides the Groq vision model id. Default `qwen/qwen3.8-27b` (`src/ai.js:30`). Useful if Groq deprecates the default model.
+- **Example:** `GROQ_MODEL=qwen/qwen3.8-27b`
 - **Security implications:** None (not a secret). Note it is set to a literal value in `render.yaml:16-17`.
 
 ### `ANTHROPIC_API_KEY`
@@ -230,7 +230,7 @@ The `render.yaml` blueprint pre-populates some of the above:
 | Variable | How set in `render.yaml` |
 |---|---|
 | `NODE_ENV` | literal `production` (lines 14-15) |
-| `GROQ_MODEL` | literal `meta-llama/llama-4-scout-17b-16e-instruct` (lines 16-17) |
+| `GROQ_MODEL` | literal `qwen/qwen3.8-27b` (lines 16-17) |
 | `GROQ_API_KEY` | `sync: false` — paste in dashboard (lines 18-19) |
 | `SUPABASE_URL` | `sync: false` (lines 20-21) |
 | `SUPABASE_SECRET_KEY` | `sync: false` (lines 22-23) |

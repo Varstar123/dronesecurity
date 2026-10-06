@@ -264,7 +264,7 @@ simulation mode with local JSON storage. A copyable template lives in
 | Variable | Purpose | Default |
 |----------|---------|---------|
 | `GROQ_API_KEY` | Enables **Groq** vision (preferred when present) | unset → next provider |
-| `GROQ_MODEL` | Groq vision model id | `meta-llama/llama-4-scout-17b-16e-instruct` (`ai.js:30`) |
+| `GROQ_MODEL` | Groq vision model id | `qwen/qwen3.8-27b` (`ai.js:30`) |
 | `ANTHROPIC_API_KEY` | Enables **Claude** vision | unset |
 | `AI_MODEL` | Claude model id (only when provider = claude) | `claude-opus-4-8` (`ai.js:27`) |
 | `AI_PROVIDER` | Force provider: `groq` \| `claude` \| `mock` | unset → auto-detect (`ai.js:16`) |
