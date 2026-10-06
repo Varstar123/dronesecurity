@@ -230,7 +230,7 @@ Writes the six tile numbers (drones shown as `online/total`) and toggles the `#p
 - `renderMF()` (`portal.js:707-722`) — renders `state.mf` as timestamped log items (escalation vs field update, officer, incident, location, conveyed text), or a ripple empty-state.
 
 #### Fleet map (Leaflet)
-- `initMap()` (`portal.js:757-774`) — creates the Leaflet map centred on `CONFIG.cityCenter`, adds a **CARTO dark** tile layer (no API key), a marker layer group, and a click handler that sets `state.pendingTarget`, fills the hidden lat/lng inputs, and shows the pin-confirm overlay.
+- `initMap()` (`portal.js:757-774`) — creates the Leaflet map centred on `CONFIG.cityCenter`, adds the standard **OpenStreetMap** tile layer (no API key), a marker layer group, and a click handler that sets `state.pendingTarget`, fills the hidden lat/lng inputs, and shows the pin-confirm overlay.
 - Marker factories: `lucidePin` (incident icon pin, `portal.js:776-783`), `solidPin` (teardrop target pin, `portal.js:785-793`), `droneIcon` (labelled status dot; colour from `STATUS_COLOR`, `portal.js:794-807`).
 - `renderMap()` (`portal.js:809-849`) — always syncs the side roster via `renderFleetPanel()`; initialises Leaflet only when the map tab is visible and sized; otherwise skips the marker rebuild. When visible it clears and redraws pending-alert incidents, active-dispatch targets (with a 20 m arrival circle), the pending target, and **only connected drones**. Auto-frames the fleet once via `fitMap()`.
 - `renderFleetPanel()` (`portal.js:853-879`) — the always-in-sync roster aside listing **all** drones (online first) with status, battery, live-view indicator, and last-seen; independent of Leaflet visibility.
@@ -430,7 +430,7 @@ The picker (`initThemePicker`) sets `data-theme` and persists to `localStorage['
 - `body` uses a radial-gradient glow background over `--bg` (`style.css:85-91`).
 - Lucide SVGs are sized via `.lucide` (`style.css:95-97`).
 - AI-status badges use `.badge.live` / `.badge.mock` (`style.css:112-117`), set from `CONFIG.aiMode` (`portal.js:20`, `drone.js:45`).
-- The Leaflet map is themed purely through CSS variables + a dark CARTO tile layer; no external map CSS is used beyond Leaflet's own stylesheet.
+- The Leaflet map uses the standard OpenStreetMap tile layer; no external map CSS is used beyond Leaflet's own stylesheet.
 
 ---
 

@@ -760,11 +760,12 @@ function hidePinConfirm() {
 function initMap() {
   const c = CONFIG.cityCenter;
   lmap = L.map('map', { zoomControl: true, attributionControl: true }).setView([c.lat, c.lng], 14);
-  // Dark map tiles (free, no API key) to match the control-center theme.
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 20,
-    attribution: '© OpenStreetMap · © CARTO'
+  // OpenStreetMap standard tiles need no API key. Keep attribution visible and
+  // request tiles only for the current map viewport (Leaflet's normal behavior).
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    subdomains: 'abc',
+    maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(lmap);
   mapMarkers = L.layerGroup().addTo(lmap);
   lmap.on('click', (e) => {
